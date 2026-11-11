@@ -1,0 +1,8 @@
+data
+database
+docs
+public
+public/icons
+public/images
+scripts
+src
