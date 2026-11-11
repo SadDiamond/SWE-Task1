@@ -1,0 +1,6 @@
+body {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font: 1rem/1.5 system-ui, sans-serif;
+}
