@@ -1,0 +1,10 @@
+README.md
+database/schema.sql
+public/index.html
+public/styles.css
+public/app.js
+scripts/create-structure.sh
+scripts/check.js
+src/server.js
+src/db.js
+src/rules.js
