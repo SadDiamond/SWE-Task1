@@ -21,14 +21,28 @@ CREATE TABLE IF NOT EXISTS families (
   description TEXT NOT NULL CHECK (length(description) BETWEEN 10 AND 200)
 );
 
--- One curve for each day. a, b and c are whole numbers that src/rules.js turns into the formula.
+-- Second version: one curve a day. Replaced by three curves a day (see slot below).
+-- CREATE TABLE IF NOT EXISTS machines (
+--   id INTEGER PRIMARY KEY,
+--   play_date TEXT NOT NULL UNIQUE CHECK (length(play_date) = 10),
+--   family_id INTEGER NOT NULL,
+--   a INTEGER NOT NULL CHECK (a BETWEEN -9 AND 9 AND a != 0),
+--   b INTEGER NOT NULL CHECK (b BETWEEN -9 AND 9),
+--   c INTEGER NOT NULL CHECK (c BETWEEN -9 AND 9),
+--   FOREIGN KEY (family_id) REFERENCES families(id)
+-- );
+
+-- Three curves for each day: slot 1 is easy, 2 is medium, 3 is hard.
+-- a, b and c are whole numbers that src/rules.js turns into the formula.
 CREATE TABLE IF NOT EXISTS machines (
   id INTEGER PRIMARY KEY,
-  play_date TEXT NOT NULL UNIQUE CHECK (length(play_date) = 10),
+  play_date TEXT NOT NULL CHECK (length(play_date) = 10),
+  slot INTEGER NOT NULL CHECK (slot BETWEEN 1 AND 3),
   family_id INTEGER NOT NULL,
   a INTEGER NOT NULL CHECK (a BETWEEN -9 AND 9 AND a != 0),
   b INTEGER NOT NULL CHECK (b BETWEEN -9 AND 9),
   c INTEGER NOT NULL CHECK (c BETWEEN -9 AND 9),
+  UNIQUE (play_date, slot),
   FOREIGN KEY (family_id) REFERENCES families(id)
 );
 
