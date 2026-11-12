@@ -148,8 +148,11 @@ function drawGraph(svg, picture, limit) {
     }));
   });
 
+  // Once the answer is showing, the last go is faded too so the real curve stands out.
   if (picture.shown) {
-    drawMarked(svg, picture.shown.strokes, picture.shown.levels, scale);
+    const group = svgElement('g', { class: picture.curve ? 'faded' : '' });
+    drawMarked(group, picture.shown.strokes, picture.shown.levels, scale);
+    svg.append(group);
   }
   picture.strokes.forEach((stroke) => {
     svg.append(svgElement('path', { class: 'stroke', d: strokePath(stroke, scale) }));

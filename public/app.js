@@ -88,7 +88,8 @@ async function start() {
     drawGraph(graph, {
       strokes: round.strokes,
       shown: round.shown,
-      ghost: round.ghost,
+      // At the end only the last go is kept on screen, behind the real curve.
+      ghost: round.result ? null : round.ghost,
       percent,
       missed: round.missed,
       exits: round.exits,
