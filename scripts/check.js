@@ -10,7 +10,8 @@ const {
 assert.strictEqual(rules.evaluate({ family_id: LINE, a: 3, b: -2, c: 0 }, 4), 4);
 assert.strictEqual(rules.evaluate({ family_id: PARABOLA, a: 4, b: 1, c: -3 }, 3), 1);
 assert.strictEqual(rules.evaluate({ family_id: V_SHAPE, a: 2, b: 0, c: 0 }, -5), 5);
-assert.strictEqual(rules.evaluate({ family_id: CUBIC, a: 1, b: 0, c: 1 }, 2), 2);
+assert.strictEqual(rules.evaluate({ family_id: CUBIC, a: 2, b: 1, c: 4 }, 3), -3);
+assert.strictEqual(rules.evaluate({ family_id: CUBIC, a: 2, b: 1, c: 4 }, 5), 0, 'a cubic crosses zero at b + c');
 assert.strictEqual(rules.evaluate({ family_id: WAVE, a: 3, b: 4, c: 1 }, 2), 4);
 assert.strictEqual(rules.evaluate({ family_id: ROOT, a: 2, b: -4, c: 0 }, 0), 4);
 assert.strictEqual(rules.evaluate({ family_id: ROOT, a: 2, b: -4, c: 0 }, -5), null, 'no square root before the start');
@@ -24,6 +25,8 @@ assert.strictEqual(rules.describe({ family_id: LINE, a: 3, b: -2, c: 0 }), 'y = 
 assert.strictEqual(rules.describe({ family_id: LINE, a: -2, b: 0, c: 0 }), 'y = −x');
 assert.strictEqual(rules.describe({ family_id: PARABOLA, a: 2, b: 3, c: -4 }), 'y = 0.5(x − 3)² − 4');
 assert.strictEqual(rules.describe({ family_id: PARABOLA, a: 4, b: 0, c: 0 }), 'y = x²');
+assert.strictEqual(rules.describe({ family_id: CUBIC, a: 2, b: 1, c: 4 }), 'y = 0.125(x + 3)(x − 1)(x − 5)');
+assert.strictEqual(rules.describe({ family_id: CUBIC, a: -16, b: 0, c: 4 }), 'y = −(x + 4)x(x − 4)');
 assert.strictEqual(rules.describe({ family_id: V_SHAPE, a: -2, b: -1, c: 5 }), 'y = −|x + 1| + 5');
 assert.strictEqual(rules.describe({ family_id: WAVE, a: 3, b: 4, c: 1 }), 'y = 3 sin(πx ÷ 4) + 1');
 assert.strictEqual(rules.describe({ family_id: ROOT, a: 2, b: -3, c: -1 }), 'y = 2√(x + 3) − 1');

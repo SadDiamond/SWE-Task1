@@ -52,7 +52,7 @@ INSERT OR IGNORE INTO families (id, name, difficulty, description) VALUES
   (1, 'Straight line', 1, 'Goes up or down by the same amount with every step across.'),
   (2, 'Parabola', 1, 'A smooth U shape, or an upside-down U, with one turning point.'),
   (3, 'V shape', 1, 'Two straight lines meeting at a sharp corner.'),
-  (4, 'Cubic', 2, 'An S-shaped curve that flattens in the middle then climbs or falls steeply.'),
+  (4, 'Cubic', 2, 'A curve with one hill and one dip, heading off in opposite directions at each end.'),
   (5, 'Wave', 2, 'Rises and falls in a repeating pattern, like ripples.'),
   (6, 'Square root', 2, 'Starts at a point, rises quickly, then levels off. Nothing exists before the start.'),
   (7, 'Exponential', 2, 'Almost flat on one side, then shoots away faster and faster on the other.'),

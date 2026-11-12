@@ -50,7 +50,8 @@ function evaluate(machine, x) {
     case V_SHAPE:
       return (a / 2) * Math.abs(x - b) + c;
     case CUBIC:
-      return (a / 8) * (x - b) ** 3 + c;
+      // Written with its three crossing points (b - c, b and b + c) so it always has a clear hill and dip.
+      return (a / 16) * (x - b + c) * (x - b) * (x - b - c);
     case WAVE:
       return a * Math.sin((Math.PI * x) / b) + c;
     case ROOT:
@@ -242,7 +243,7 @@ function starsFor(solved, goes) {
 
 // Turns -0.5 into "−0.5" and drops pointless decimals.
 function text(number) {
-  return String(Math.round(number * 1000) / 1000).replace('-', '−');
+  return String(Math.round(number * 10000) / 10000).replace('-', '−');
 }
 
 // A multiplier in front of something: 1 disappears, -1 becomes just a minus sign.
@@ -279,7 +280,7 @@ function describe(machine) {
     case V_SHAPE:
       return `y = ${times(a / 2)}|${shifted(b)}|${plus(c)}`;
     case CUBIC:
-      return `y = ${times(a / 8)}${bracket(b)}³${plus(c)}`;
+      return `y = ${times(a / 16)}${bracket(b - c)}${bracket(b)}${bracket(b + c)}`;
     case WAVE:
       return `y = ${a === 1 ? '' : `${a} `}sin(πx ÷ ${b})${plus(c)}`;
     case ROOT:
@@ -352,7 +353,7 @@ function randomMachine(next, familyId) {
     case V_SHAPE:
       return { a: nonZero(-4, 4), b: between(-5, 5), c: between(-6, 6) };
     case CUBIC:
-      return { a: pick([-2, -1, 1, 2]), b: between(-4, 4), c: between(-5, 5) };
+      return { a: nonZero(-3, 3), b: between(-3, 3), c: pick([4, 5]) };
     case WAVE:
       return { a: between(1, 5), b: between(2, 5), c: between(-4, 4) };
     case ROOT:
