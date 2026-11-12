@@ -57,6 +57,55 @@ app.post('/api/machines/:id/test', route(async (request, response) => {
   response.json({ input, output: rules.evaluate(machines[0], input) });
 }));
 
+// The kinds of function a machine can be, for the "name the type" question.
+app.get('/api/families', route(async (_request, response) => {
+  response.json(await all('SELECT id, name, description FROM families ORDER BY id'));
+}));
+
+// Marks an answer: a drawing of the whole curve and a guess at the type.
+app.post('/api/machines/:id/answer', route(async (request, response) => {
+  const id = Number.parseInt(request.params.id, 10);
+  const { drawing, familyId, testsUsed } = request.body;
+  const points = rules.MAX_INPUT - rules.MIN_INPUT + 1;
+
+  const validDrawing = Array.isArray(drawing)
+    && drawing.length === points
+    && drawing.every((value) => Number.isInteger(value) && Math.abs(value) <= 100000);
+  if (!validDrawing) {
+    return response.status(400).json({ error: `Draw a value for all ${points} inputs before submitting.` });
+  }
+  if (![rules.LINE, rules.CURVE, rules.REMAINDER].includes(familyId)) {
+    return response.status(400).json({ error: 'Choose which type of function you think it is.' });
+  }
+  if (!Number.isInteger(testsUsed) || testsUsed < 0 || testsUsed > rules.MAX_TESTS) {
+    return response.status(400).json({ error: 'The number of tests used is not valid.' });
+  }
+
+  const machines = await all(`
+    SELECT machines.*, families.name AS family_name
+    FROM machines
+    INNER JOIN families ON families.id = machines.family_id
+    WHERE machines.id = ? AND machines.play_date <= ?
+  `, [id, rules.todayDate()]);
+  if (machines.length === 0) return response.status(404).json({ error: 'Machine not found.' });
+
+  const machine = machines[0];
+  const truth = rules.allOutputs(machine);
+  const accuracy = rules.accuracy(drawing, truth);
+  const typeCorrect = familyId === machine.family_id;
+  const score = rules.finalScore(accuracy, typeCorrect, testsUsed);
+
+  response.json({
+    accuracy,
+    typeCorrect,
+    score,
+    stars: rules.starsFor(score),
+    truth,
+    familyName: machine.family_name,
+    formula: rules.describe(machine)
+  });
+}));
+
 app.use('/api', (_request, response) => {
   response.status(404).json({ error: 'That address does not exist on the server.' });
 });

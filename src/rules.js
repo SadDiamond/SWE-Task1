@@ -33,6 +33,65 @@ function sameRule(first, second) {
   return true;
 }
 
+// Every output the machine gives, from the smallest allowed input to the largest.
+function allOutputs(machine) {
+  const outputs = [];
+  for (let x = MIN_INPUT; x <= MAX_INPUT; x += 1) {
+    outputs.push(evaluate(machine, x));
+  }
+  return outputs;
+}
+
+// How close a drawing is to the real outputs, as a percentage.
+// drawing and truth are lists with one number for each input.
+// A point scores full marks when exact and nothing once it is 15% of the graph's height away.
+function accuracy(drawing, truth) {
+  const height = Math.max(10, Math.max(...truth) - Math.min(...truth));
+  const tolerance = height * 0.15;
+  let total = 0;
+
+  truth.forEach((output, index) => {
+    const error = Math.abs(drawing[index] - output);
+    total += Math.max(0, 1 - error / tolerance);
+  });
+  return Math.round((total / truth.length) * 100);
+}
+
+// Final score: accuracy, plus 10 for naming the right type, plus 1 for every test not used.
+function finalScore(accuracyPercent, typeCorrect, testsUsed) {
+  return accuracyPercent + (typeCorrect ? 10 : 0) + (MAX_TESTS - testsUsed);
+}
+
+function starsFor(score) {
+  if (score >= 100) return 3;
+  if (score >= 80) return 2;
+  if (score >= 60) return 1;
+  return 0;
+}
+
+// Writes "+ 3" or "− 3" for the end of a formula, or nothing for zero.
+function signed(number, letter = '') {
+  if (number === 0) return '';
+  return ` ${number < 0 ? '−' : '+'} ${Math.abs(number)}${letter}`;
+}
+
+// The machine's rule written out, e.g. "y = 3x − 2".
+function describe(machine) {
+  const lead = (number, letters) => {
+    if (number === 1) return letters;
+    if (number === -1) return `−${letters}`;
+    return `${String(number).replace('-', '−')}${letters}`;
+  };
+
+  if (machine.family_id === LINE) {
+    return `y = ${lead(machine.a, 'x')}${signed(machine.b)}`;
+  }
+  if (machine.family_id === CURVE) {
+    return `y = ${lead(machine.a, 'x²')}${signed(machine.b, 'x')}${signed(machine.c)}`;
+  }
+  return `y = remainder of (${lead(machine.a, 'x')}${signed(machine.b)}) ÷ ${machine.c}`;
+}
+
 // Gives the same "random" numbers every time for the same seed,
 // so a date always produces the same machine.
 function numberMaker(seed) {
@@ -104,5 +163,5 @@ async function fillHistory() {
 
 module.exports = {
   CURVE, LINE, MAX_INPUT, MAX_TESTS, MIN_INPUT, REMAINDER,
-  evaluate, fillHistory, machineFor, makeMachine, sameRule, todayDate
+  accuracy, allOutputs, describe, evaluate, fillHistory, finalScore, machineFor, makeMachine, sameRule, starsFor, todayDate
 };
