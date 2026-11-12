@@ -1,31 +1,46 @@
 PRAGMA foreign_keys = ON;
 
--- The kinds of rule a machine can hide.
+-- First version of these tables: three families, and machines tested by typing in whole numbers.
+-- Replaced when the game changed to drawing the curve. src/db.js removes the old tables once.
+-- CREATE TABLE IF NOT EXISTS machines (
+--   id INTEGER PRIMARY KEY,
+--   play_date TEXT NOT NULL UNIQUE CHECK (length(play_date) = 10),
+--   family_id INTEGER NOT NULL,
+--   a INTEGER NOT NULL CHECK (a BETWEEN -9 AND 9 AND a != 0),
+--   b INTEGER NOT NULL CHECK (b BETWEEN -20 AND 20),
+--   c INTEGER NOT NULL DEFAULT 0 CHECK (c BETWEEN -20 AND 20),
+--   difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 3),
+--   FOREIGN KEY (family_id) REFERENCES families(id)
+-- );
+
+-- The kinds of function a daily curve can be.
 CREATE TABLE IF NOT EXISTS families (
   id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE CHECK (length(name) BETWEEN 3 AND 20),
-  formula TEXT NOT NULL CHECK (length(formula) BETWEEN 3 AND 40),
+  name TEXT NOT NULL UNIQUE CHECK (length(name) BETWEEN 3 AND 30),
+  difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 3),
   description TEXT NOT NULL CHECK (length(description) BETWEEN 10 AND 200)
 );
 
--- One machine for each day. a, b and c are the numbers in its family's formula.
+-- One curve for each day. a, b and c are whole numbers that src/rules.js turns into the formula.
 CREATE TABLE IF NOT EXISTS machines (
   id INTEGER PRIMARY KEY,
   play_date TEXT NOT NULL UNIQUE CHECK (length(play_date) = 10),
   family_id INTEGER NOT NULL,
   a INTEGER NOT NULL CHECK (a BETWEEN -9 AND 9 AND a != 0),
-  b INTEGER NOT NULL CHECK (b BETWEEN -20 AND 20),
-  c INTEGER NOT NULL DEFAULT 0 CHECK (c BETWEEN -20 AND 20),
-  difficulty INTEGER NOT NULL CHECK (difficulty BETWEEN 1 AND 3),
+  b INTEGER NOT NULL CHECK (b BETWEEN -9 AND 9),
+  c INTEGER NOT NULL CHECK (c BETWEEN -9 AND 9),
   FOREIGN KEY (family_id) REFERENCES families(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_machines_family ON machines(family_id);
 
-INSERT OR IGNORE INTO families (id, name, formula, description) VALUES
-  (1, 'Straight line', 'a × x + b',
-   'Multiplies the input by one number, then adds another. Outputs go up or down by the same amount each step.'),
-  (2, 'Curve', 'a × x² + b × x + c',
-   'Uses the input squared, so outputs bend into a U shape or an upside-down U.'),
-  (3, 'Remainder', '(a × x + b) mod c',
-   'Works something out, then keeps only the remainder after dividing by c. Outputs repeat in a cycle.');
+INSERT OR IGNORE INTO families (id, name, difficulty, description) VALUES
+  (1, 'Straight line', 1, 'Goes up or down by the same amount with every step across.'),
+  (2, 'Parabola', 1, 'A smooth U shape, or an upside-down U, with one turning point.'),
+  (3, 'V shape', 1, 'Two straight lines meeting at a sharp corner.'),
+  (4, 'Cubic', 2, 'An S-shaped curve that flattens in the middle then climbs or falls steeply.'),
+  (5, 'Wave', 2, 'Rises and falls in a repeating pattern, like ripples.'),
+  (6, 'Square root', 2, 'Starts at a point, rises quickly, then levels off. Nothing exists before the start.'),
+  (7, 'Exponential', 2, 'Almost flat on one side, then shoots away faster and faster on the other.'),
+  (8, 'Hyperbola', 3, 'Two separate pieces that hug a vertical line and a flat line without touching them.'),
+  (9, 'Slanted hyperbola', 3, 'Two pieces that hug a vertical line and a sloping line.');

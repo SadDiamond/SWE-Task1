@@ -35,13 +35,28 @@ function all(sql, parameters = []) {
   });
 }
 
+// Raised whenever the tables change shape.
+const SCHEMA_VERSION = 2;
+
+function exec(sql) {
+  return new Promise((resolve, reject) => {
+    getDatabase().exec(sql, (error) => (error ? reject(error) : resolve()));
+  });
+}
+
 // Creates the tables from database/schema.sql. Safe to run on every start.
 async function initialiseDatabase() {
   await fs.mkdir(path.dirname(databasePath), { recursive: true });
-  const schema = await fs.readFile(schemaPath, 'utf8');
-  await new Promise((resolve, reject) => {
-    getDatabase().exec(schema, (error) => (error ? reject(error) : resolve()));
-  });
+
+  // SQLite keeps a version number inside the database file. If the file was made by an
+  // older version of the app, its tables are removed once so the new ones can be created.
+  const version = await all('PRAGMA user_version');
+  if (version[0].user_version < SCHEMA_VERSION) {
+    await exec('DROP TABLE IF EXISTS machines; DROP TABLE IF EXISTS families;');
+  }
+
+  await exec(await fs.readFile(schemaPath, 'utf8'));
+  await run(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 }
 
 module.exports = { all, initialiseDatabase, run };
