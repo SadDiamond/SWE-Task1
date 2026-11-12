@@ -27,36 +27,30 @@ function route(handler) {
   return (request, response, next) => handler(request, response).catch(next);
 }
 
-// Today's curve. Only what the page needs to set up the game; nothing about the curve itself.
+// Today's three curves. Only what the page needs to set up the game; nothing about the curves themselves.
 app.get('/api/today', route(async (_request, response) => {
-  const machine = await rules.machineFor(rules.todayDate());
+  const machines = await rules.machinesFor(rules.todayDate());
   response.json({
-    id: machine.id,
-    date: machine.play_date,
-    difficulty: machine.difficulty,
+    date: rules.todayDate(),
     limit: rules.LIMIT,
-    columns: rules.COLUMNS,
     maxGoes: rules.MAX_GOES,
-    // How many strokes make up one go. More than one means the curve has breaks in it.
-    strokes: rules.pieces(machine),
-    shortestStroke: rules.SHORTEST_STROKE
+    shortestStroke: rules.SHORTEST_STROKE,
+    curves: machines.map((machine) => ({
+      id: machine.id,
+      slot: machine.slot,
+      // How many strokes make up one go. More than one means the curve has breaks in it.
+      strokesPerGo: rules.pieces(machine)
+    }))
   });
 }));
 
-// Checks one go: a freehand drawing with one value (or null) for each column of the graph.
+// Marks one go: a freehand drawing made of strokes, each a list of [x, y] pen positions.
 app.post('/api/machines/:id/go', route(async (request, response) => {
   const id = Number.parseInt(request.params.id, 10);
   const { drawing, go } = request.body;
 
-  const validDrawing = Array.isArray(drawing)
-    && drawing.length === rules.COLUMNS
-    && drawing.every((value) => value === null
-      || (typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= rules.LIMIT));
-  if (!validDrawing) {
+  if (!rules.validDrawing(drawing)) {
     return response.status(400).json({ error: 'That drawing is not in the right format.' });
-  }
-  if (drawing.every((value) => value === null)) {
-    return response.status(400).json({ error: 'Draw something on the graph first.' });
   }
   if (!Number.isInteger(go) || go < 1 || go > rules.MAX_GOES) {
     return response.status(400).json({ error: 'That go number is not valid.' });
@@ -71,7 +65,6 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
   if (machines.length === 0) return response.status(404).json({ error: 'Curve not found.' });
 
   const machine = machines[0];
-  const curve = rules.visibleCurve(machine);
   const result = rules.judge(drawing, machine);
   const finished = result.solved || go === rules.MAX_GOES;
 
@@ -85,7 +78,7 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
   };
   // The real curve is only sent once the round is over.
   if (finished) {
-    reply.curve = curve;
+    reply.curve = rules.visibleCurve(machine);
     reply.stars = rules.starsFor(result.solved, go);
     reply.familyName = machine.family_name;
     reply.formula = rules.describe(machine);

@@ -15,10 +15,12 @@ const BANDS = [0.5, 1, 1.5, 2.5];
 // The pen must travel at least this far (in graph units) for a stroke to count,
 // so a stray tap does not use up a go.
 const SHORTEST_STROKE = 1.5;
-// A line is treated as broken where it jumps more than this between neighbouring columns.
+// The real curve is treated as broken where it jumps more than this between neighbouring columns.
 const BIGGEST_STEP = 6;
-// How many columns either side to look when measuring how far a point is from a line.
+// How many columns either side to look when measuring how far a point is from the curve.
 const REACH = 30;
+// The most pen positions one go may contain, so a request cannot be made enormous.
+const MOST_POINTS = 3000;
 const DAYS_OF_HISTORY = 30;
 
 const LINE = 1;
@@ -117,24 +119,39 @@ function distanceToPiece(x, y, x1, y1, x2, y2) {
   return Math.hypot(x - (x1 + along * (x2 - x1)), y - (y1 + along * (y2 - y1)));
 }
 
-// The shortest distance from the point in a column to a line, measured in any direction.
-// Measuring straight up and down would be unfair on steep lines, where being a little
+// The shortest distance from a point to the real curve, measured in any direction.
+// Measuring straight up and down would be unfair on steep curves, where being a little
 // to one side looks like a huge error.
-function distanceToLine(column, output, line) {
-  const x = inputFor(column);
+// curve is a list with one output for each column.
+function distanceToCurve(x, y, curve) {
+  const nearest = Math.round((x + LIMIT) * STEPS_PER_UNIT);
+  const first = Math.max(0, nearest - REACH);
+  const last = Math.min(COLUMNS - 1, nearest + REACH);
   let best = Infinity;
 
-  const first = Math.max(0, column - REACH);
-  const last = Math.min(COLUMNS - 1, column + REACH);
-  for (let index = first; index <= last; index += 1) {
-    const here = line[index];
+  for (let column = first; column <= last; column += 1) {
+    const here = curve[column];
     if (here === null) continue;
-    const next = index < last ? line[index + 1] : null;
+    const next = column < last ? curve[column + 1] : null;
     const joined = next !== null && Math.abs(next - here) <= BIGGEST_STEP;
 
     best = Math.min(best, joined
-      ? distanceToPiece(x, output, inputFor(index), here, inputFor(index + 1), next)
-      : Math.hypot(x - inputFor(index), output - here));
+      ? distanceToPiece(x, y, inputFor(column), here, inputFor(column + 1), next)
+      : Math.hypot(x - inputFor(column), y - here));
+  }
+  return best;
+}
+
+// The shortest distance from a point to anything the player drew.
+// strokes is a list of strokes, and each stroke is a list of [x, y] pen positions.
+function distanceToDrawing(x, y, strokes) {
+  let best = Infinity;
+  for (const stroke of strokes) {
+    for (let index = 0; index < stroke.length - 1; index += 1) {
+      const [x1, y1] = stroke[index];
+      const [x2, y2] = stroke[index + 1];
+      best = Math.min(best, distanceToPiece(x, y, x1, y1, x2, y2));
+    }
   }
   return best;
 }
@@ -147,41 +164,64 @@ function levelFor(distance) {
   return level === -1 ? BANDS.length : level;
 }
 
-// Compares a drawing with the real curve.
-// drawing is a list with one output for each column, null where nothing is drawn.
-// Two things are measured: how close each part of the drawing is to the curve,
-// and how close each visible part of the curve is to the drawing. Both count towards the score.
-// levels: 0 to 4 for each drawn column, null where nothing was drawn.
-// missed: true where the curve is on the graph but the drawing is nowhere near it.
-function judge(drawing, machine) {
+// Marks a drawing against the real curve.
+// The drawing can be any shape: loops, vertical lines and doubling back are all allowed.
+// Half the score is how much of the drawn line lies on the curve.
+// The other half is how much of the visible curve the drawing covers.
+// levels: for each stroke, a level from 0 to 4 for each pen position.
+// missed: for each column, true where the curve is on the graph but the drawing is nowhere near.
+function judge(strokes, machine) {
   const whole = wholeCurve(machine);
   const visible = visibleCurve(machine);
-  const levels = [];
-  const missed = [];
-  let points = 0;
-  let counted = 0;
 
-  for (let column = 0; column < COLUMNS; column += 1) {
-    let level = null;
-    if (drawing[column] !== null) {
-      level = levelFor(distanceToLine(column, drawing[column], whole));
-      points += 1 - level / BANDS.length;
-      counted += 1;
+  // Part one: the drawing. Each piece of line counts by its length, so drawing slowly
+  // (which makes more pen positions) is worth no more than drawing quickly.
+  let inkLength = 0;
+  let inkOnCurve = 0;
+  const levels = strokes.map((stroke) => stroke.map(([x, y], index) => {
+    const level = levelFor(distanceToCurve(x, y, whole));
+    if (index > 0) {
+      const [previousX, previousY] = stroke[index - 1];
+      const length = Math.hypot(x - previousX, y - previousY);
+      inkLength += length;
+      inkOnCurve += length * (1 - level / BANDS.length);
     }
+    return level;
+  }));
 
-    let isMissed = false;
-    if (visible[column] !== null) {
-      const covered = levelFor(distanceToLine(column, visible[column], drawing));
-      points += 1 - covered / BANDS.length;
-      counted += 1;
-      isMissed = covered === BANDS.length;
-    }
-    levels.push(level);
-    missed.push(isMissed);
-  }
+  // Part two: the curve. Every visible column is checked to see how near the drawing comes.
+  let curvePoints = 0;
+  let curveCovered = 0;
+  const missed = visible.map((output, column) => {
+    if (output === null) return false;
+    const level = levelFor(distanceToDrawing(inputFor(column), output, strokes));
+    curvePoints += 1;
+    curveCovered += 1 - level / BANDS.length;
+    return level === BANDS.length;
+  });
 
-  const accuracy = counted === 0 ? 0 : Math.round((points / counted) * 100);
+  const precision = inkLength === 0 ? 0 : inkOnCurve / inkLength;
+  const coverage = curvePoints === 0 ? 0 : curveCovered / curvePoints;
+  const accuracy = Math.round(((precision + coverage) / 2) * 100);
   return { levels, missed, accuracy, solved: accuracy >= SOLVED_AT };
+}
+
+// Checks that a drawing sent by the browser is the right shape before it is marked:
+// a list of strokes, each a list of [x, y] pairs that are numbers inside the graph.
+function validDrawing(strokes) {
+  if (!Array.isArray(strokes) || strokes.length === 0 || strokes.length > 10) return false;
+
+  let points = 0;
+  for (const stroke of strokes) {
+    if (!Array.isArray(stroke) || stroke.length < 2) return false;
+    points += stroke.length;
+    for (const point of stroke) {
+      const isPair = Array.isArray(point) && point.length === 2
+        && point.every((value) => typeof value === 'number' && Math.abs(value) <= LIMIT);
+      if (!isPair) return false;
+    }
+  }
+  return points <= MOST_POINTS;
 }
 
 // How many separate pieces the curve is in: one more than its vertical asymptotes.
@@ -326,10 +366,18 @@ function randomMachine(next, familyId) {
   }
 }
 
-// Builds the curve for a date. Every family comes up equally often.
-function makeMachine(date) {
-  const next = numberMaker(dayNumber(date) * 7919);
-  const familyId = 1 + next(9);
+// Which families belong to each of the day's three curves: easy, medium and hard.
+const FAMILIES_FOR_SLOT = {
+  1: [LINE, PARABOLA, V_SHAPE],
+  2: [CUBIC, WAVE, ROOT, EXPONENTIAL],
+  3: [HYPERBOLA, SLANTED]
+};
+
+// Builds one of the three curves for a date. slot is 1 (easy), 2 (medium) or 3 (hard).
+function makeMachine(date, slot) {
+  const next = numberMaker(dayNumber(date) * 7919 + slot * 104729);
+  const choices = FAMILIES_FOR_SLOT[slot];
+  const familyId = choices[next(choices.length)];
 
   // Keep trying until a good part of the curve is actually on the graph.
   let machine;
@@ -341,33 +389,35 @@ function makeMachine(date) {
   return machine;
 }
 
-// Finds the curve for a date, creating and saving it the first time it is asked for.
-async function machineFor(date) {
-  const made = makeMachine(date);
-  await run(
-    'INSERT OR IGNORE INTO machines (play_date, family_id, a, b, c) VALUES (?, ?, ?, ?, ?)',
-    [date, made.family_id, made.a, made.b, made.c]
-  );
-  const machines = await all(`
+// Finds the three curves for a date, creating and saving them the first time they are asked for.
+async function machinesFor(date) {
+  for (const slot of [1, 2, 3]) {
+    const made = makeMachine(date, slot);
+    await run(
+      'INSERT OR IGNORE INTO machines (play_date, slot, family_id, a, b, c) VALUES (?, ?, ?, ?, ?, ?)',
+      [date, slot, made.family_id, made.a, made.b, made.c]
+    );
+  }
+  return all(`
     SELECT machines.*, families.name AS family_name, families.difficulty
     FROM machines
     INNER JOIN families ON families.id = machines.family_id
     WHERE machines.play_date = ?
+    ORDER BY machines.slot
   `, [date]);
-  return machines[0];
 }
 
 // Makes sure the last month of curves exists, so there are past days to play.
 async function fillHistory() {
   const today = dayNumber(todayDate());
   for (let day = today - DAYS_OF_HISTORY; day <= today; day += 1) {
-    await machineFor(new Date(day * 86400000).toISOString().slice(0, 10));
+    await machinesFor(new Date(day * 86400000).toISOString().slice(0, 10));
   }
 }
 
 module.exports = {
   COLUMNS, LIMIT, MAX_GOES, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
-  asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machineFor, makeMachine,
-  pieces, starsFor, todayDate, visibleCurve, wholeCurve
+  asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
+  pieces, starsFor, todayDate, validDrawing, visibleCurve, wholeCurve
 };
