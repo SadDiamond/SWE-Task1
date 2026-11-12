@@ -1,8 +1,8 @@
 {
-  "name": "blackbox",
+  "name": "placeholder",
   "version": "0.1.0",
   "private": true,
-  "description": "Blackbox: a daily puzzle about working out the rule hidden inside a machine.",
+  "description": "A daily puzzle about working out the rule hidden inside a machine.",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

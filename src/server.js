@@ -71,7 +71,7 @@ app.use((error, _request, response, _next) => {
 
 initialiseDatabase()
   .then(() => rules.fillHistory())
-  .then(() => app.listen(port, () => console.log(`Blackbox running at http://localhost:${port}`)))
+  .then(() => app.listen(port, () => console.log(`Placeholder running at http://localhost:${port}`)))
   .catch((error) => {
     console.error('Database setup failed:', error);
     process.exitCode = 1;
