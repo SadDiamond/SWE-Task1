@@ -8,9 +8,13 @@
   --grid: #e3e7eb;
   --grid-major: #c3cad2;
   --fresh: #1b4fc4;
-  --good: #1c8139;
-  --close: #b96a00;
   --wrong: #c22f27;
+  /* Closeness, from spot on to way off. */
+  --level-0: #1c8139;
+  --level-1: #7da511;
+  --level-2: #d8a200;
+  --level-3: #e06c12;
+  --level-4: #c22f27;
 
   --text: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   /* A handwriting font that is already on most computers, so nothing has to be downloaded. */
@@ -135,19 +139,10 @@ p {
   font-size: 0.9375rem;
 }
 
-/* Tools above the graph */
-
-.tools,
-.check-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 1rem;
-}
-
-.tools {
+.stroke-info {
   margin: 1rem 0 0.5rem;
+  font-family: var(--hand);
+  font-weight: 700;
 }
 
 fieldset {
@@ -271,46 +266,69 @@ button.primary:hover:not(:disabled) {
   font: 12px var(--text);
 }
 
-/* Lines on the graph. Each kind of feedback has its own pattern as well as its own colour. */
+/* Lines on the graph */
 
 .stroke,
-.ghost,
+.mark,
 .truth {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
+/* The line being drawn right now. */
 .stroke {
+  stroke: var(--fresh);
   stroke-width: 6;
 }
 
-.stroke.fresh {
-  stroke: var(--fresh);
+/* A marked line. The closer to the curve, the greener and thicker it is. */
+.mark.l0 {
+  stroke: var(--level-0);
+  stroke-width: 8;
 }
 
-.stroke.g {
-  stroke: var(--good);
+.mark.l1 {
+  stroke: var(--level-1);
+  stroke-width: 7;
 }
 
-.stroke.a {
-  stroke: var(--close);
-  stroke-dasharray: 10 9;
+.mark.l2 {
+  stroke: var(--level-2);
+  stroke-width: 6;
 }
 
-.stroke.r {
-  stroke: var(--wrong);
-  stroke-dasharray: 1 10;
+.mark.l3 {
+  stroke: var(--level-3);
+  stroke-width: 5;
 }
 
-.ghost {
-  stroke: var(--grid-major);
-  stroke-width: 3;
+.mark.l4 {
+  stroke: var(--level-4);
+  stroke-width: 4;
+}
+
+/* The go before last, left behind to trace over. */
+.faded {
+  opacity: 0.28;
 }
 
 .truth {
   stroke: var(--ink);
   stroke-width: 3;
+}
+
+/* The score across the middle of the graph. The white edge keeps it readable over the grid. */
+.percent {
+  fill: var(--ink);
+  font-family: var(--hand);
+  font-weight: 700;
+  opacity: 0.85;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 10px;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .asymptote {
@@ -339,7 +357,10 @@ button.primary:hover:not(:disabled) {
 
 /* Under the graph */
 
-.check-row {
+.under-graph {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   margin-top: 0.75rem;
 }
 
@@ -360,7 +381,7 @@ button.primary:hover:not(:disabled) {
 }
 
 .goes-text {
-  margin: 0.25rem 0 0;
+  margin: 0;
   font-family: var(--hand);
 }
 
@@ -405,49 +426,57 @@ button.primary:hover:not(:disabled) {
   border-top: 2px dashed var(--grid-major);
 }
 
+.scale {
+  display: flex;
+  align-items: center;
+  max-width: 20rem;
+}
+
+.scale span {
+  flex: 1;
+}
+
+.scale .l0 {
+  height: 8px;
+  background: var(--level-0);
+}
+
+.scale .l1 {
+  height: 7px;
+  background: var(--level-1);
+}
+
+.scale .l2 {
+  height: 6px;
+  background: var(--level-2);
+}
+
+.scale .l3 {
+  height: 5px;
+  background: var(--level-3);
+}
+
+.scale .l4 {
+  height: 4px;
+  background: var(--level-4);
+}
+
+.scale-labels {
+  display: flex;
+  justify-content: space-between;
+  max-width: 20rem;
+  margin: 0.25rem 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
 .key ul {
   margin: 0 0 1rem;
-  padding: 0;
-  list-style: none;
+  padding-left: 1.25rem;
 }
 
 .key li {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  padding: 0.25rem 0;
-}
-
-.swatch {
-  flex: none;
-  width: 2.5rem;
-  height: 0;
-  border-top: 6px solid;
-  text-align: center;
-}
-
-.swatch.g {
-  border-color: var(--good);
-}
-
-.swatch.a {
-  border-color: var(--close);
-  border-top-style: dashed;
-}
-
-.swatch.r {
-  border-color: var(--wrong);
-  border-top-style: dotted;
-}
-
-.swatch.exit {
-  height: auto;
-  border: 0;
-  line-height: 1;
-}
-
-.swatch.missed {
-  border-color: var(--muted);
+  padding: 0.125rem 0;
 }
 
 summary {

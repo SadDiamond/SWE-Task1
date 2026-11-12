@@ -37,34 +37,47 @@ function graphPosition(svg, event, limit, columns) {
   };
 }
 
-// Splits a list of values into separate lines. A new line starts at a gap, at a big jump,
-// or where the label changes (labels are the feedback marks, so each colour is its own line).
-function linesFrom(values, labels, scale) {
+// Splits a list of values into separate lines. A new line starts at a gap or a big jump.
+function linesFrom(values, scale) {
   const lines = [];
   let current = null;
 
   values.forEach((value, column) => {
     const previous = column > 0 ? values[column - 1] : null;
-    const label = labels ? labels[column] : '';
-    const joined = value !== null && previous !== null && Math.abs(value - previous) <= BIGGEST_STEP;
-
     if (value === null) {
       current = null;
       return;
     }
     const point = `${scale.xFor(scale.inputFor(column)).toFixed(1)} ${scale.yFor(value).toFixed(1)}`;
-    if (!current || !joined || current.label !== label) {
-      // Start from the previous point when the line carries on, so colours meet without a gap.
-      const start = joined
-        ? `M${scale.xFor(scale.inputFor(column - 1)).toFixed(1)} ${scale.yFor(previous).toFixed(1)} L${point}`
-        : `M${point} L${point}`;
-      current = { label, path: start };
+    const joined = previous !== null && Math.abs(value - previous) <= BIGGEST_STEP;
+    if (!current || !joined) {
+      current = { path: `M${point} L${point}` };
       lines.push(current);
     } else {
       current.path += ` L${point}`;
     }
   });
   return lines;
+}
+
+// Draws a marked attempt: every short piece of the line gets the colour of its level.
+// levels holds 0 (spot on) to 4 (way off) for each column.
+function drawMarked(group, values, levels, scale) {
+  values.forEach((value, column) => {
+    if (value === null) return;
+    const previous = column > 0 ? values[column - 1] : null;
+    const joined = previous !== null && Math.abs(value - previous) <= BIGGEST_STEP;
+    const x = scale.xFor(scale.inputFor(column));
+    const y = scale.yFor(value);
+
+    group.append(svgElement('line', {
+      class: `mark l${levels[column]}`,
+      x1: joined ? scale.xFor(scale.inputFor(column - 1)) : x,
+      y1: joined ? scale.yFor(previous) : y,
+      x2: x,
+      y2: y
+    }));
+  });
 }
 
 function drawGrid(svg, scale, limit) {
@@ -105,8 +118,9 @@ function drawGrid(svg, scale, limit) {
 }
 
 // picture holds everything to show:
-//   drawing: the current drawing, marks: feedback for it ('g', 'a', 'r' or null),
-//   ghosts: earlier drawings, missed: columns the last go left empty by mistake,
+//   drawing: the strokes of the go in progress,
+//   shown: the last go once marked { drawing, levels }, ghost: the go before that,
+//   percent: the score to show over the graph, missed: columns the last go left empty by mistake,
 //   exits: where the curve leaves the graph, curve and asymptotes: the answer, once known,
 //   pen: the keyboard pen { column, output, down }, or null.
 function drawGraph(svg, picture, limit) {
@@ -118,11 +132,11 @@ function drawGraph(svg, picture, limit) {
   svg.setAttribute('viewBox', `0 0 ${scale.size} ${scale.size}`);
   drawGrid(svg, scale, limit);
 
-  picture.ghosts.forEach((ghost) => {
-    linesFrom(ghost, null, scale).forEach((line) => {
-      svg.append(svgElement('path', { class: 'ghost', d: line.path }));
-    });
-  });
+  if (picture.ghost) {
+    const faded = svgElement('g', { class: 'faded' });
+    drawMarked(faded, picture.ghost.drawing, picture.ghost.levels, scale);
+    svg.append(faded);
+  }
 
   // A grey bar along the bottom wherever the last go missed part of the curve.
   const columnWidth = scale.size / (columns - 1);
@@ -147,13 +161,16 @@ function drawGraph(svg, picture, limit) {
     });
   }
 
-  linesFrom(picture.drawing, picture.marks, scale).forEach((line) => {
-    svg.append(svgElement('path', { class: `stroke ${line.label || 'fresh'}`, d: line.path }));
+  if (picture.shown) {
+    drawMarked(svg, picture.shown.drawing, picture.shown.levels, scale);
+  }
+  linesFrom(picture.drawing, scale).forEach((line) => {
+    svg.append(svgElement('path', { class: 'stroke', d: line.path }));
   });
 
   // The real curve goes on top of the drawing so it can always be seen.
   if (picture.curve) {
-    linesFrom(picture.curve, null, scale).forEach((line) => {
+    linesFrom(picture.curve, scale).forEach((line) => {
       svg.append(svgElement('path', { class: 'truth', d: line.path }));
     });
   }
@@ -173,8 +190,19 @@ function drawGraph(svg, picture, limit) {
     svg.append(svgElement('circle', { class: picture.pen.down ? 'pen down' : 'pen', cx: x, cy: y, r: 8 }));
   }
 
-  const drawn = picture.drawing.filter((value) => value !== null).length;
-  summary.textContent = `Graph from −${limit} to ${limit}. `
-    + (drawn === 0 ? 'Nothing drawn yet.' : `Your drawing covers about ${Math.round((drawn / columns) * 100)}% of the width.`)
+  // The score, written large across the middle of the graph.
+  if (picture.percent !== null) {
+    svg.append(svgElement('text', {
+      class: 'percent',
+      x: scale.size / 2,
+      y: scale.size / 2,
+      'font-size': scale.size * 0.24,
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle'
+    }, `${picture.percent}%`));
+  }
+
+  summary.textContent = `Graph from −${limit} to ${limit}.`
+    + (picture.percent !== null ? ` Your last go scored ${picture.percent}%.` : ' Nothing checked yet.')
     + (picture.curve ? ' The real curve is shown.' : '');
 }

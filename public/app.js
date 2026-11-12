@@ -46,32 +46,32 @@ async function start() {
   const graph = find('#graph');
   const blank = () => new Array(game.columns).fill(null);
 
-  // The drawing: one output for each column across the graph, null where nothing is drawn.
+  // The strokes of the go in progress: one output for each column, null where nothing is drawn.
   let drawing = blank();
-  // Feedback for each column from the last check. Cleared wherever the player draws again.
-  let marks = blank();
-  // A copy of the drawing from every go so far.
-  const attempts = [];
+  // What the drawing looked like before the current stroke, in case the stroke is too short to count.
+  let beforeStroke = blank();
+  // The first and last column the current stroke has touched.
+  let strokeSpan = null;
+  let strokesDone = 0;
+
+  // The last go once it has been marked: { drawing, levels }. The go before it is the ghost.
+  let shown = null;
+  let ghost = null;
+  let percent = null;
   let missed = [];
   let exits = [];
   // The answer, once the round is over.
   let curve = null;
   let asymptotes = [];
   let goes = 0;
+  // True while waiting for the server to mark a go.
+  let waiting = false;
   // The keyboard pen. Only shown while the graph is selected with the keyboard.
   const pen = { column: (game.columns - 1) / 2, output: 0, down: false, visible: false };
 
   function showGraph() {
     drawGraph(graph, {
-      drawing,
-      marks,
-      // The newest attempt is the drawing on screen, so only older ones are shown as faint ghosts.
-      ghosts: attempts.slice(0, -1),
-      missed,
-      exits,
-      curve,
-      asymptotes,
-      pen: pen.visible && !curve ? pen : null
+      drawing, shown, ghost, percent, missed, exits, curve, asymptotes, pen: pen.visible && !curve ? pen : null
     }, game.limit);
   }
 
@@ -84,38 +84,110 @@ async function start() {
     find('#goes-text').textContent = `${goesText(game.maxGoes - goes)} left`;
   }
 
-  function tool() {
-    return find('input[name="tool"]:checked').value;
+  /* Strokes */
+
+  function startStroke() {
+    if (curve || waiting) return false;
+    // The first stroke of a new go pushes the last marked go into the background.
+    if (strokesDone === 0 && shown) {
+      ghost = shown;
+      shown = null;
+      percent = null;
+      missed = [];
+    }
+    beforeStroke = [...drawing];
+    strokeSpan = null;
+    message('');
+    return true;
   }
 
-  // Draws (or rubs out) between two positions on the graph.
+  // Draws between two positions on the graph.
   // Every column between them gets a value, so a fast drag leaves no holes.
   function drawBetween(from, to) {
-    if (curve) return;
-    const first = Math.round(Math.min(from.column, to.column));
-    const last = Math.round(Math.max(from.column, to.column));
+    const first = Math.max(0, Math.round(Math.min(from.column, to.column)));
+    const last = Math.min(game.columns - 1, Math.round(Math.max(from.column, to.column)));
 
     for (let column = first; column <= last; column += 1) {
-      if (column < 0 || column >= game.columns) continue;
       // How far this column is along the drag, from 0 at "from" to 1 at "to".
       const along = to.column === from.column ? 1 : (column - from.column) / (to.column - from.column);
       const output = from.output + (to.output - from.output) * Math.min(1, Math.max(0, along));
       const onGraph = Math.max(-game.limit, Math.min(game.limit, output));
-
-      drawing[column] = tool() === 'pen' ? Math.round(onGraph * 100) / 100 : null;
-      marks[column] = null;
+      drawing[column] = Math.round(onGraph * 100) / 100;
+    }
+    if (first <= last) {
+      strokeSpan = strokeSpan
+        ? { first: Math.min(strokeSpan.first, first), last: Math.max(strokeSpan.last, last) }
+        : { first, last };
     }
     showGraph();
+  }
+
+  // Called when the pen is lifted. Once enough strokes are down, the go is sent to be marked.
+  async function endStroke() {
+    const length = strokeSpan ? strokeSpan.last - strokeSpan.first : 0;
+    if (length < game.shortestStroke) {
+      drawing = beforeStroke;
+      showGraph();
+      return message('That was too short to count. Draw a longer line.');
+    }
+
+    strokesDone += 1;
+    if (strokesDone < game.strokes) {
+      return message(`Piece ${strokesDone} of ${game.strokes} drawn. Now draw the next piece.`);
+    }
+
+    waiting = true;
+    try {
+      const result = await send(`/api/machines/${game.id}/go`, { drawing, go: goes + 1 });
+      goes += 1;
+      shown = { drawing, levels: result.levels };
+      percent = result.accuracy;
+      missed = result.missed;
+      exits = result.exits;
+      showGoes();
+      if (result.finished) {
+        showResult(result);
+      } else {
+        message(`${result.accuracy}%. Trace the green parts and fix the rest.`);
+      }
+    } catch (error) {
+      message(error.message);
+    }
+    // Whether it worked or not, the next go starts from a clean drawing.
+    drawing = blank();
+    strokesDone = 0;
+    waiting = false;
+    showGraph();
+  }
+
+  function showResult(result) {
+    curve = result.curve;
+    asymptotes = result.asymptotes;
+
+    // The big score is cleared so it does not cover the real curve.
+    percent = null;
+    find('#result-heading').textContent = result.solved
+      ? `Cracked it in ${goesText(goes)} with ${result.accuracy}%`
+      : `Out of goes. Your last one scored ${result.accuracy}%`;
+    find('#result-stars').textContent = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
+    find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
+    find('#result-family').textContent = result.familyName;
+    find('#result-formula').textContent = result.formula;
+
+    find('#result').hidden = false;
+    find('#stroke-info').hidden = true;
+    graph.classList.add('finished');
+    message('');
   }
 
   /* Drawing with a mouse, finger or stylus */
 
   let last = null;
   graph.addEventListener('pointerdown', (event) => {
+    if (!startStroke()) return;
     last = graphPosition(graph, event, game.limit, game.columns);
     graph.setPointerCapture(event.pointerId);
     pen.visible = false;
-    message('');
     drawBetween(last, last);
   });
   graph.addEventListener('pointermove', (event) => {
@@ -124,22 +196,29 @@ async function start() {
     drawBetween(last, here);
     last = here;
   });
-  graph.addEventListener('pointerup', () => {
+  function liftPointer() {
+    if (!last) return;
     last = null;
-  });
-  graph.addEventListener('pointercancel', () => {
-    last = null;
-  });
+    endStroke();
+  }
+  graph.addEventListener('pointerup', liftPointer);
+  graph.addEventListener('pointercancel', liftPointer);
 
   /* Drawing with the keyboard */
 
   graph.addEventListener('keydown', (event) => {
     const moves = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, 0.25], ArrowDown: [0, -0.25] };
+
     if (event.key === ' ') {
       event.preventDefault();
-      pen.down = !pen.down;
-      if (pen.down) drawBetween(pen, pen);
-      message(pen.down ? 'Pen down.' : 'Pen up.');
+      if (pen.down) {
+        pen.down = false;
+        endStroke();
+      } else if (startStroke()) {
+        pen.down = true;
+        drawBetween(pen, pen);
+        message('Pen down. Move with the arrow keys, then press Space to lift it.');
+      }
     }
     if (moves[event.key]) {
       event.preventDefault();
@@ -153,57 +232,7 @@ async function start() {
   });
   graph.addEventListener('blur', () => {
     pen.visible = false;
-    pen.down = false;
     showGraph();
-  });
-
-  find('#clear').addEventListener('click', () => {
-    drawing = blank();
-    marks = blank();
-    message('');
-    showGraph();
-  });
-
-  /* Checking a go */
-
-  function showResult(result) {
-    curve = result.curve;
-    asymptotes = result.asymptotes;
-
-    find('#result-heading').textContent = result.solved
-      ? `Cracked it in ${goesText(goes)}`
-      : `Out of goes. Your best was ${result.accuracy}%`;
-    find('#result-stars').textContent = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
-    find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
-    find('#result-family').textContent = result.familyName;
-    find('#result-formula').textContent = result.formula;
-
-    find('.tools').hidden = true;
-    find('.check-row').hidden = true;
-    find('#result').hidden = false;
-    graph.classList.add('finished');
-  }
-
-  find('#check').addEventListener('click', async () => {
-    try {
-      const result = await send(`/api/machines/${game.id}/go`, { drawing, go: goes + 1 });
-      goes += 1;
-      attempts.push([...drawing]);
-      marks = result.marks;
-      missed = result.missed;
-      exits = result.exits;
-
-      showGoes();
-      if (result.finished) {
-        showResult(result);
-        message('');
-      } else {
-        message(`${result.accuracy}% there. Fix the red and amber parts, then check again.`);
-      }
-      showGraph();
-    } catch (error) {
-      message(error.message);
-    }
   });
 
   // The graph is drawn at its real size, so it needs redrawing when the window changes.
@@ -212,6 +241,9 @@ async function start() {
   const date = new Date(`${game.date}T00:00`);
   const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   find('#machine-details').textContent = `No. ${game.id} · ${dateText} · difficulty ${game.difficulty} of 3`;
+  find('#stroke-info').textContent = game.strokes === 1
+    ? 'One stroke per go. Lift your pen and it is marked.'
+    : `This curve is in ${game.strokes} pieces, so each go is ${game.strokes} strokes.`;
 
   showGoes();
   showGraph();

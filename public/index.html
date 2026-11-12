@@ -23,33 +23,22 @@
       <h1>Today's curve</h1>
       <p id="machine-details" class="details">Loading…</p>
       <p class="intro">
-        A curve is hiding on this graph. Draw where you think it goes, then check.
-        Your line changes colour to show how close each part is. You get five goes.
+        A curve is hiding on this graph. Draw where you think it goes. The moment you lift
+        your pen, your line is marked: green where you are on it, red where you are way off.
       </p>
 
       <section aria-labelledby="graph-heading">
         <h2 id="graph-heading" class="visually-hidden">Graph</h2>
-
-        <div class="tools">
-          <fieldset class="switch">
-            <legend class="visually-hidden">Tool</legend>
-            <label><input type="radio" name="tool" value="pen" checked> Pen</label>
-            <label><input type="radio" name="tool" value="eraser"> Eraser</label>
-          </fieldset>
-          <button type="button" id="clear">Clear all</button>
-        </div>
+        <p id="stroke-info" class="stroke-info"></p>
 
         <svg id="graph" class="graph" role="img" tabindex="0"
              aria-labelledby="graph-summary" aria-describedby="keyboard-help">
           <title id="graph-summary">Graph from −10 to 10. Nothing drawn yet.</title>
         </svg>
 
-        <div class="check-row">
-          <div>
-            <div id="goes" class="goes" aria-hidden="true"></div>
-            <p id="goes-text" class="goes-text"></p>
-          </div>
-          <button type="button" id="check" class="primary">Check my drawing</button>
+        <div class="under-graph">
+          <div id="goes" class="goes" aria-hidden="true"></div>
+          <p id="goes-text" class="goes-text"></p>
         </div>
 
         <p id="form-status" class="status" role="status" aria-live="polite"></p>
@@ -65,21 +54,24 @@
       </section>
 
       <section class="key" aria-labelledby="key-heading">
-        <h2 id="key-heading">What the colours mean</h2>
+        <h2 id="key-heading">Reading your line</h2>
+        <div class="scale" aria-hidden="true">
+          <span class="l0"></span><span class="l1"></span><span class="l2"></span><span class="l3"></span><span class="l4"></span>
+        </div>
+        <p class="scale-labels"><span>Spot on</span><span>Way off</span></p>
         <ul>
-          <li><span class="swatch g" aria-hidden="true"></span> <span><strong>Green, solid</strong>: spot on.</span></li>
-          <li><span class="swatch a" aria-hidden="true"></span> <span><strong>Amber, dashed</strong>: close.</span></li>
-          <li><span class="swatch r" aria-hidden="true"></span> <span><strong>Red, dotted</strong>: way off, or there is no curve here at all.</span></li>
-          <li><span class="swatch exit" aria-hidden="true">▲</span> <span><strong>Arrow on an edge</strong>: the curve leaves the graph here.</span></li>
-          <li><span class="swatch missed" aria-hidden="true"></span> <span><strong>Grey bar along the bottom</strong>: the curve is somewhere above, and you drew nothing.</span></li>
+          <li>The line is thick and green where you are on the curve, and gets thinner and redder the further away you are.</li>
+          <li>Red also means there is no curve in that spot at all.</li>
+          <li><strong>▲ An arrow on the top or bottom edge</strong>: the curve leaves the graph here.</li>
+          <li><strong>A grey bar along the bottom</strong>: the curve is somewhere above, and you drew nothing.</li>
+          <li>Your last go stays on the graph, faded, so you can trace the good parts.</li>
         </ul>
 
         <details>
           <summary>Drawing with a keyboard</summary>
           <p id="keyboard-help">
             Select the graph with Tab. The arrow keys move the pen. Press Space to put the pen
-            down, move to draw, and press Space again to lift it. With the eraser chosen, the
-            same keys rub out.
+            down, move to draw, and press Space again to lift it, which finishes the stroke.
           </p>
         </details>
       </section>
