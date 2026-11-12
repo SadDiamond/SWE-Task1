@@ -1,25 +1,33 @@
 /* Design tokens: every colour, font and space used on the site is named here once.
-   The look is a page of graph paper: ink for facts, a blue pen for the player, a red pen for marking. */
+   The graph itself is clean. Everything around it looks drawn by hand. */
 
 :root {
-  --page: #f7f5ee;
-  --paper: #fffefa;
-  --ink: #22262b;
-  --muted: #5b6370;
-  --rule: #c9d3dc;
-  --grid: #dbe4ec;
-  --blue-pen: #1b4fc4;
-  --red-pen: #c22f27;
-  --gap-shade: #fff3c9;
+  --page: #fbfaf6;
+  --ink: #1f2328;
+  --muted: #5a626c;
+  --grid: #e3e7eb;
+  --grid-major: #c3cad2;
+  --fresh: #1b4fc4;
+  --good: #1c8139;
+  --close: #b96a00;
+  --wrong: #c22f27;
 
   --text: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  /* A handwriting font that is already on most computers, so nothing has to be downloaded. */
+  --hand: "Chalkboard SE", "Comic Sans MS", "Comic Neue", "Segoe Print", cursive;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --space: 1rem;
+  /* An uneven corner radius makes a box look drawn with a pen instead of a ruler. */
+  --wobble: 255px 15px 225px 15px / 15px 225px 15px 255px;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Makes the hidden attribute win over display rules set further down. */
+[hidden] {
+  display: none !important;
 }
 
 body {
@@ -27,11 +35,6 @@ body {
   background: var(--page);
   color: var(--ink);
   font: 1rem/1.55 var(--text);
-}
-
-/* Makes the hidden attribute win over display rules set further down. */
-[hidden] {
-  display: none !important;
 }
 
 .visually-hidden {
@@ -48,7 +51,7 @@ body {
 .top,
 main,
 footer {
-  width: min(100% - 2rem, 50rem);
+  width: min(100% - 2rem, 38rem);
   margin-inline: auto;
 }
 
@@ -58,14 +61,14 @@ footer {
   align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 1.5rem;
-  padding: 1.25rem 0 0.75rem;
+  padding: 1rem 0 0.5rem;
   border-bottom: 2px solid var(--ink);
+  border-radius: 0 0 var(--wobble);
 }
 
 .brand {
   color: var(--ink);
-  font-size: 1.125rem;
-  font-weight: 700;
+  font: 700 1.375rem var(--hand);
   text-decoration: none;
 }
 
@@ -82,184 +85,130 @@ nav a {
   display: block;
   padding: 0.375rem 0;
   color: var(--ink);
+  font-family: var(--hand);
   text-decoration: none;
 }
 
 nav a:hover,
 nav a[aria-current="page"] {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
+  text-decoration: underline wavy;
   text-underline-offset: 0.3em;
 }
 
 main {
-  padding: 1.75rem 0 3rem;
+  padding: 1.5rem 0 3rem;
 }
 
 footer {
   padding: 1rem 0 2rem;
-  border-top: 1px solid var(--rule);
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-h1 {
-  margin: 0;
-  font-size: clamp(1.625rem, 5vw, 2.25rem);
-  line-height: 1.15;
+h1,
+h2 {
+  font-family: var(--hand);
+  line-height: 1.2;
 }
 
-#machine-details {
-  margin: 0.25rem 0 1.25rem;
-  color: var(--muted);
+h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
 }
 
 h2 {
-  margin: 0 0 0.375rem;
-  font-size: 1.125rem;
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
 }
 
 p {
   margin: 0 0 0.75rem;
 }
 
-.help {
-  margin: 0.5rem 0 0;
+.details {
+  margin: 0.125rem 0 0.75rem;
   color: var(--muted);
-  font-size: 0.875rem;
 }
 
-/* The graph */
+.help {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
 
-.graph-bar {
+/* Tools above the graph */
+
+.tools,
+.check-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.5rem 1rem;
 }
 
-.graph {
-  display: block;
-  width: 100%;
-  /* Wide on a big screen, closer to square on a phone so there is room to draw. */
-  aspect-ratio: 16 / 10;
-  cursor: grab;
-  /* Sideways drags move the graph; up-and-down swipes still scroll the page on a phone. */
-  touch-action: pan-y;
-  user-select: none;
+.tools {
+  margin: 1rem 0 0.5rem;
 }
 
-/* Clicking the graph with a mouse should not draw a focus box round it. Keyboard focus still does. */
-.graph:focus:not(:focus-visible) {
-  outline: none;
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
-.graph.drawing-mode {
-  cursor: crosshair;
-  touch-action: none;
+.switch {
+  display: flex;
+  gap: 0.375rem;
 }
 
-.paper {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-}
-
-.grid {
-  stroke: var(--grid);
-  stroke-width: 1;
-}
-
-.axis {
-  stroke: var(--ink);
-  stroke-width: 1.5;
-}
-
-.edge {
-  stroke: var(--rule);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-
-.gap {
-  fill: var(--gap-shade);
-}
-
-.tick {
-  fill: var(--muted);
-  font: 13px var(--mono);
-}
-
-.point {
-  fill: var(--ink);
-  stroke: var(--paper);
-  stroke-width: 2;
-}
-
-.point.newest {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 3;
-}
-
-.drawing,
-.truth {
-  fill: none;
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.drawing {
-  stroke: var(--blue-pen);
-}
-
-.truth {
-  stroke: var(--red-pen);
-  stroke-dasharray: 2 6;
-}
-
-/* Controls */
-
-input,
+.switch label,
 button {
-  font: inherit;
-}
-
-button {
+  display: inline-flex;
+  align-items: center;
   min-height: 2.75rem;
-  padding: 0.5rem 1rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
+  padding: 0.375rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  background: #ffffff;
   color: var(--ink);
-  font-weight: 600;
+  font: 700 1rem var(--hand);
   cursor: pointer;
 }
 
-button:hover:not(:disabled) {
+.switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.switch label:has(input:checked) {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+.switch label:has(input:focus-visible) {
+  outline: 3px solid var(--fresh);
+  outline-offset: 2px;
+}
+
+button:hover:not(:disabled),
+.switch label:hover:not(:has(input:checked)) {
   background: var(--grid);
 }
 
 button.primary {
-  background: var(--ink);
-  color: var(--paper);
+  padding-inline: 1.25rem;
+  background: var(--fresh);
+  border-color: var(--ink);
+  color: #ffffff;
+  font-size: 1.125rem;
 }
 
 button.primary:hover:not(:disabled) {
-  background: #3a4048;
-}
-
-button:disabled,
-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  background: #163f9c;
 }
 
 :focus-visible {
-  outline: 3px solid var(--blue-pen);
+  outline: 3px solid var(--fresh);
   outline-offset: 2px;
 }
 
@@ -273,270 +222,237 @@ input:disabled {
   top: 1rem;
   z-index: 1;
   padding: 0.5rem 1rem;
-  background: var(--paper);
+  background: #ffffff;
 }
 
-/* Draw / Move switch */
+/* The graph: square, plain and clean like a graphing calculator */
 
-fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
+.graph {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  cursor: crosshair;
+  /* The graph is for drawing on, so a finger must not scroll the page from here. */
+  touch-action: none;
+  user-select: none;
 }
 
-.switch {
-  display: flex;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  overflow: hidden;
+.graph.finished {
+  cursor: default;
 }
 
-.switch label {
-  display: flex;
-  align-items: center;
-  min-height: 2.5rem;
-  padding: 0 1rem;
-  font-weight: 600;
-  cursor: pointer;
+/* Clicking the graph with a mouse should not draw a focus ring. Keyboard focus still does. */
+.graph:focus:not(:focus-visible) {
+  outline: none;
 }
 
-.switch input {
-  position: absolute;
-  opacity: 0;
+.paper {
+  fill: #ffffff;
 }
 
-.switch label:has(input:checked) {
-  background: var(--ink);
-  color: var(--paper);
+.grid {
+  stroke: var(--grid);
+  stroke-width: 1;
 }
 
-.switch label:has(input:focus-visible) {
-  outline: 3px solid var(--blue-pen);
-  outline-offset: -3px;
+.grid.major {
+  stroke: var(--grid-major);
 }
 
-.zoom {
+.axis {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.tick {
+  fill: var(--muted);
+  font: 12px var(--text);
+}
+
+/* Lines on the graph. Each kind of feedback has its own pattern as well as its own colour. */
+
+.stroke,
+.ghost,
+.truth {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stroke {
+  stroke-width: 6;
+}
+
+.stroke.fresh {
+  stroke: var(--fresh);
+}
+
+.stroke.g {
+  stroke: var(--good);
+}
+
+.stroke.a {
+  stroke: var(--close);
+  stroke-dasharray: 10 9;
+}
+
+.stroke.r {
+  stroke: var(--wrong);
+  stroke-dasharray: 1 10;
+}
+
+.ghost {
+  stroke: var(--grid-major);
+  stroke-width: 3;
+}
+
+.truth {
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+.asymptote {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 8 6;
+}
+
+.exit {
+  fill: var(--ink);
+}
+
+.missed {
+  fill: var(--muted);
+}
+
+.pen {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.pen.down {
+  fill: var(--fresh);
+}
+
+/* Under the graph */
+
+.check-row {
+  margin-top: 0.75rem;
+}
+
+.goes {
   display: flex;
   gap: 0.375rem;
 }
 
-.zoom button {
-  min-width: 2.5rem;
-  min-height: 2.5rem;
-  padding: 0 0.75rem;
-}
-
-/* The three steps */
-
-.steps {
-  margin-top: 1.5rem;
-}
-
-.step {
-  padding: 1.25rem 0;
-  border-top: 1px solid var(--rule);
-}
-
-.number {
-  display: inline-grid;
-  place-items: center;
-  width: 1.625rem;
-  height: 1.625rem;
-  margin-right: 0.375rem;
-  border: 1.5px solid var(--ink);
+.go {
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid var(--ink);
   border-radius: 50%;
-  font-size: 0.875rem;
 }
 
-.test-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
-}
-
-.test-form label {
-  font-weight: 600;
-}
-
-.test-form input {
-  width: 6rem;
-  min-height: 2.75rem;
-  padding: 0 0.625rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 1.125rem;
-}
-
-.energy-text {
-  margin: 1rem 0 0.375rem;
-  font-weight: 600;
-}
-
-/* Tests left, as a row of boxes that empty from the right */
-
-.cells {
-  display: flex;
-  gap: 0.25rem;
-  max-width: 20rem;
-}
-
-.cell {
-  flex: 1;
-  height: 0.625rem;
-  border: 1.5px solid var(--ink);
-}
-
-.cell.full {
+.go.used {
   background: var(--ink);
 }
 
-.log {
-  margin-top: 1rem;
-}
-
-.log summary {
-  padding: 0.375rem 0;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-table {
-  width: 100%;
-  max-width: 20rem;
-  border-collapse: collapse;
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-th,
-td {
-  padding: 0.3125rem 0.75rem;
-  border-bottom: 1px solid var(--grid);
-  text-align: right;
-}
-
-thead th {
-  border-bottom: 1.5px solid var(--ink);
-  font-family: var(--text);
-  font-size: 0.875rem;
-}
-
-tbody th {
-  font-weight: 400;
-}
-
-td:last-child {
-  color: var(--muted);
-}
-
-tr.newest th,
-tr.newest td {
-  font-weight: 700;
-}
-
-.progress {
-  font-weight: 600;
-}
-
-/* Choosing the type */
-
-.families legend {
-  margin-bottom: 0.625rem;
-}
-
-.families label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0 0.625rem;
-  padding: 0.75rem;
-  border: 1.5px solid var(--rule);
-  border-radius: 3px;
-  background: var(--paper);
-  cursor: pointer;
-}
-
-.families label + label {
-  margin-top: 0.5rem;
-}
-
-.families label:has(input:checked) {
-  border-color: var(--ink);
-}
-
-.families input {
-  grid-row: span 2;
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0.2rem 0 0;
-  accent-color: var(--ink);
-}
-
-.families span {
-  color: var(--muted);
-  font-size: 0.9375rem;
-}
-
-.submit {
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--rule);
+.goes-text {
+  margin: 0.25rem 0 0;
+  font-family: var(--hand);
 }
 
 .status {
-  min-height: 1.5rem;
+  min-height: 1.6rem;
   margin: 0.75rem 0 0;
-  color: var(--red-pen);
   font-weight: 600;
 }
 
 /* Result */
 
 .result {
-  margin-top: 1.5rem;
-  padding: 1.25rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
-}
-
-.score {
-  margin: 0.25rem 0 1rem;
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1.1;
+  margin-top: 1rem;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  background: #ffffff;
 }
 
 .stars {
-  margin-left: 0.5rem;
-  color: var(--red-pen);
-  letter-spacing: 0.1em;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.375rem 1.5rem;
-  margin: 0;
-}
-
-dt {
-  color: var(--muted);
-}
-
-dd {
-  margin: 0;
-  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--wrong);
+  font-size: 1.75rem;
+  letter-spacing: 0.15em;
+  line-height: 1;
 }
 
 .formula {
-  font-family: var(--mono);
+  display: inline-block;
+  padding: 0.25rem 0.875rem;
+  border: 2px solid var(--wrong);
+  border-radius: 50%;
+  font: 700 1.125rem var(--mono);
+  transform: rotate(-1.5deg);
 }
 
-@media (max-width: 36rem) {
-  .graph {
-    aspect-ratio: 1 / 1;
-  }
+/* Key */
+
+.key {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 2px dashed var(--grid-major);
+}
+
+.key ul {
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.key li {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.25rem 0;
+}
+
+.swatch {
+  flex: none;
+  width: 2.5rem;
+  height: 0;
+  border-top: 6px solid;
+  text-align: center;
+}
+
+.swatch.g {
+  border-color: var(--good);
+}
+
+.swatch.a {
+  border-color: var(--close);
+  border-top-style: dashed;
+}
+
+.swatch.r {
+  border-color: var(--wrong);
+  border-top-style: dotted;
+}
+
+.swatch.exit {
+  height: auto;
+  border: 0;
+  line-height: 1;
+}
+
+.swatch.missed {
+  border-color: var(--muted);
+}
+
+summary {
+  padding: 0.375rem 0;
+  font-family: var(--hand);
+  font-weight: 700;
+  cursor: pointer;
 }
