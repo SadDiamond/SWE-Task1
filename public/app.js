@@ -44,8 +44,24 @@ async function start() {
   const machine = await request('/api/today');
   const form = find('#test-form');
   const input = find('#input');
+  const graph = find('#graph');
   // Every test run so far, in the order they were made: { input, output }.
   const tests = [];
+  // The part of the graph on screen. null means "fit everything", until the player moves it.
+  let view = null;
+
+  function currentView() {
+    return view || fitView(tests, machine.minInput, machine.maxInput);
+  }
+
+  function showGraph() {
+    drawGraph(graph, tests, currentView());
+  }
+
+  function setView(newView) {
+    view = newView;
+    showGraph();
+  }
 
   function showEnergy() {
     const left = machine.maxTests - tests.length;
@@ -80,6 +96,14 @@ async function start() {
     find('#log-empty').hidden = tests.length > 0;
   }
 
+  // Restarts the short "working" animation on the machine box.
+  function runAnimation() {
+    const box = find('.box');
+    box.classList.remove('working');
+    box.offsetWidth; // reading this makes the browser notice the class was removed
+    box.classList.add('working');
+  }
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const value = Number(input.value);
@@ -96,7 +120,9 @@ async function start() {
       find('#output').textContent = result.output;
       showEnergy();
       showLog();
-      drawGraph(find('#graph'), tests, machine.minInput, machine.maxInput);
+      // Go back to the fitted view so the new point is always visible.
+      setView(null);
+      runAnimation();
       message(tests.length === machine.maxTests ? 'That was your last test.' : '');
       input.select();
     } catch (error) {
@@ -111,9 +137,14 @@ async function start() {
   input.min = machine.minInput;
   input.max = machine.maxInput;
 
+  addGraphControls(graph, currentView, setView);
+  find('#zoom-in').addEventListener('click', () => setView(zoomView(currentView(), 0.8)));
+  find('#zoom-out').addEventListener('click', () => setView(zoomView(currentView(), 1.25)));
+  find('#zoom-fit').addEventListener('click', () => setView(null));
+
   showEnergy();
   showLog();
-  drawGraph(find('#graph'), tests, machine.minInput, machine.maxInput);
+  showGraph();
 }
 
 start().catch((error) => message(error.message));

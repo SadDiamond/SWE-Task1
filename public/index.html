@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="A daily puzzle: test the machine, read the graph, work out its rule.">
     <link rel="stylesheet" href="/styles.css">
-    <title>Blackbox</title>
+    <title>Placeholder</title>
   </head>
   <body>
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="top">
-      <a class="brand" href="/">Blackbox</a>
+      <a class="brand" href="/">Placeholder</a>
       <nav aria-label="Main navigation">
         <ul>
           <li><a href="/" aria-current="page">Today</a></li>
@@ -26,66 +26,72 @@
       </div>
 
       <div class="bench">
-        <div class="column">
-          <section class="panel machine" aria-labelledby="machine-heading">
-            <h2 id="machine-heading">Machine</h2>
+        <section class="panel machine" aria-labelledby="machine-heading">
+          <h2 id="machine-heading">Machine</h2>
 
-            <form id="test-form">
-              <div class="flow">
-                <div class="port">
-                  <label for="input">Input</label>
-                  <input id="input" class="readout" type="number" step="1" required
-                         aria-describedby="input-help">
-                </div>
-                <span class="arrow" aria-hidden="true">→</span>
-                <div class="box" aria-hidden="true">?</div>
-                <span class="arrow" aria-hidden="true">→</span>
-                <div class="port">
-                  <span class="label" id="output-label">Output</span>
-                  <output id="output" class="readout" for="input" aria-labelledby="output-label">–</output>
-                </div>
+          <form id="test-form">
+            <div class="flow">
+              <div class="port">
+                <label for="input">Input</label>
+                <input id="input" class="readout" type="number" step="1" required
+                       aria-describedby="input-help">
               </div>
-
-              <p id="input-help" class="help"></p>
-              <button type="submit" class="primary">Run test</button>
-            </form>
-
-            <div class="energy">
-              <p id="energy-text"></p>
-              <div id="energy-cells" class="cells" aria-hidden="true"></div>
+              <span class="arrow" aria-hidden="true">→</span>
+              <div class="box" aria-hidden="true">?</div>
+              <span class="arrow" aria-hidden="true">→</span>
+              <div class="port">
+                <span class="label" id="output-label">Output</span>
+                <output id="output" class="readout" for="input" aria-labelledby="output-label">–</output>
+              </div>
             </div>
 
-            <p id="form-status" class="status" role="status" aria-live="polite"></p>
-          </section>
+            <p id="input-help" class="help"></p>
+            <button type="submit" class="primary">Run test</button>
+          </form>
 
-          <section class="panel log" aria-labelledby="log-heading">
-            <h2 id="log-heading">Test log</h2>
-            <p id="log-empty" class="help">No tests yet. Try an input of 0 to start.</p>
-            <table id="log-table" hidden>
-              <thead>
-                <tr>
-                  <th scope="col">Input</th>
-                  <th scope="col">Output</th>
-                  <th scope="col">Test</th>
-                </tr>
-              </thead>
-              <tbody id="log-rows"></tbody>
-            </table>
-          </section>
-        </div>
+          <div class="energy">
+            <p id="energy-text"></p>
+            <div id="energy-cells" class="cells" aria-hidden="true"></div>
+          </div>
 
-        <section class="panel" aria-labelledby="graph-heading">
+          <p id="form-status" class="status" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="panel log" aria-labelledby="log-heading">
+          <h2 id="log-heading">Test log</h2>
+          <p id="log-empty" class="help">No tests yet. Try an input of 0 to start.</p>
+          <table id="log-table" hidden>
+            <thead>
+              <tr>
+                <th scope="col">Input</th>
+                <th scope="col">Output</th>
+                <th scope="col">Test</th>
+              </tr>
+            </thead>
+            <tbody id="log-rows"></tbody>
+          </table>
+        </section>
+        <section class="panel screen" aria-labelledby="graph-heading">
           <h2 id="graph-heading">Graph</h2>
-          <svg id="graph" class="graph" viewBox="0 0 480 320" role="img" aria-labelledby="graph-summary">
+          <div class="graph-tools">
+            <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+            <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+            <button type="button" id="zoom-fit">Fit</button>
+          </div>
+          <svg id="graph" class="graph" viewBox="0 0 480 320" role="img" tabindex="0"
+               aria-labelledby="graph-summary" aria-describedby="graph-help">
             <title id="graph-summary">Graph of your tests. No tests yet.</title>
           </svg>
-          <p class="help">Input runs left to right. Output runs bottom to top. The newest test has a ring.</p>
+          <p id="graph-help" class="help">
+            Drag to move around, scroll or use + and − to zoom, Fit to see everything.
+            With the graph selected, the arrow keys move it too.
+          </p>
         </section>
       </div>
     </main>
 
     <footer>
-      <p>Blackbox. A Year 12 Software Engineering project.</p>
+      <p>Placeholder. A Year 12 Software Engineering project.</p>
     </footer>
 
     <script src="/graph.js" defer></script>
