@@ -41,43 +41,54 @@ function send(url, body) {
   });
 }
 
+const SLOT_NAMES = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
+// A new pen position is only kept once the pen has moved this far (in graph units),
+// which keeps a drawing to a sensible size however slowly it is drawn.
+const PEN_SPACING = 0.05;
+
+function starsText(stars) {
+  return '★'.repeat(stars) + '☆'.repeat(3 - stars);
+}
+
 async function start() {
   const game = await request('/api/today');
   const graph = find('#graph');
-  const blank = () => new Array(game.columns).fill(null);
 
-  // The strokes of the go in progress: one output for each column, null where nothing is drawn.
-  let drawing = blank();
-  // What the drawing looked like before the current stroke, in case the stroke is too short to count.
-  let beforeStroke = blank();
-  // How far the pen has travelled in the current stroke, in graph units.
+  // Everything about one of the day's curves, so switching tabs loses nothing.
+  // A stroke is a list of [x, y] pen positions, and a go is made of one or more strokes.
+  const rounds = game.curves.map((curve) => ({
+    ...curve,
+    strokes: [],        // the strokes of the go in progress
+    shown: null,        // the last go once marked: { strokes, levels }
+    ghost: null,        // the go before that
+    missed: [],
+    exits: [],
+    goes: 0,
+    result: null        // the server's final reply once the round is over
+  }));
+  let round = rounds[0];
+
+  // How far the pen has travelled in the stroke being drawn, in graph units.
   let strokeLength = 0;
-  // How many columns there are for each unit across the graph.
-  const columnsPerUnit = (game.columns - 1) / (2 * game.limit);
-  // The marked goes on screen before the current stroke began, in case it has to be undone.
+  // The marked goes on screen before the stroke began, in case it has to be undone.
   let beforeMarks = null;
-  let strokesDone = 0;
-  // Every pointer position of the stroke being drawn, so the line can follow the pen exactly.
-  let live = [];
-
-  // The last go once it has been marked: { drawing, levels }. The go before it is the ghost.
-  let shown = null;
-  let ghost = null;
   let percent = null;
-  let missed = [];
-  let exits = [];
-  // The answer, once the round is over.
-  let curve = null;
-  let asymptotes = [];
-  let goes = 0;
   // True while waiting for the server to mark a go.
   let waiting = false;
   // The keyboard pen. Only shown while the graph is selected with the keyboard.
-  const pen = { column: (game.columns - 1) / 2, output: 0, down: false, visible: false };
+  const pen = { x: 0, y: 0, down: false, visible: false };
 
   function showGraph() {
     drawGraph(graph, {
-      drawing, live, shown, ghost, percent, missed, exits, curve, asymptotes, pen: pen.visible && !curve ? pen : null
+      strokes: round.strokes,
+      shown: round.shown,
+      ghost: round.ghost,
+      percent,
+      missed: round.missed,
+      exits: round.exits,
+      curve: round.result ? round.result.curve : null,
+      asymptotes: round.result ? round.result.asymptotes : [],
+      pen: pen.visible && !round.result ? pen : null
     }, game.limit);
   }
 
@@ -104,134 +115,165 @@ async function start() {
     }, 1800);
   }
 
-  function showGoes() {
+  /* The three tabs and everything that depends on which curve is chosen */
+
+  function showTabs() {
+    const tabs = find('#tabs');
+    tabs.replaceChildren();
+    rounds.forEach((item) => {
+      const button = element('button', undefined, 'tab');
+      button.type = 'button';
+      button.append(
+        element('span', `${item.slot}. ${SLOT_NAMES[item.slot]}`),
+        element('span', item.result ? starsText(item.result.stars) : '· · ·', 'tab-stars')
+      );
+      button.setAttribute('aria-pressed', String(item === round));
+      button.addEventListener('click', () => chooseRound(item));
+      tabs.append(button);
+    });
+
+    const earned = rounds.reduce((total, item) => total + (item.result ? item.result.stars : 0), 0);
+    const date = new Date(`${game.date}T00:00`);
+    const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+    find('#machine-details').textContent = `${dateText} · ${earned} of ${rounds.length * 3} stars`;
+  }
+
+  function showRound() {
     const dots = find('#goes');
     dots.replaceChildren();
     for (let index = 0; index < game.maxGoes; index += 1) {
-      dots.append(element('span', undefined, index < goes ? 'go used' : 'go'));
+      dots.append(element('span', undefined, index < round.goes ? 'go used' : 'go'));
     }
-    find('#goes-text').textContent = `${goesText(game.maxGoes - goes)} left`;
+    find('#goes-text').textContent = `${goesText(game.maxGoes - round.goes)} left`;
+
+    find('#stroke-info').textContent = round.strokesPerGo === 1
+      ? 'One stroke per go. Lift your pen and it is marked.'
+      : `This curve is in ${round.strokesPerGo} pieces, so each go is ${round.strokesPerGo} strokes.`;
+    find('#stroke-info').hidden = Boolean(round.result);
+    find('.under-graph').hidden = Boolean(round.result);
+    graph.classList.toggle('finished', Boolean(round.result));
+
+    find('#result').hidden = !round.result;
+    if (round.result) {
+      const result = round.result;
+      find('#result-heading').textContent = result.solved
+        ? `Cracked it in ${goesText(round.goes)} with ${result.accuracy}%`
+        : `Out of goes. Your last one scored ${result.accuracy}%`;
+      find('#result-stars').textContent = starsText(result.stars);
+      find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
+      find('#result-family').textContent = result.familyName;
+      find('#result-formula').textContent = result.formula;
+
+      const unfinished = rounds.find((item) => !item.result);
+      find('#next-curve').hidden = !unfinished;
+      find('#day-done').hidden = Boolean(unfinished);
+    }
+    showTabs();
+    showGraph();
   }
+
+  function chooseRound(item) {
+    if (waiting) return;
+    // A half-drawn go is dropped when leaving a curve.
+    round.strokes = [];
+    round = item;
+    clearTimeout(percentTimer);
+    percent = null;
+    message('');
+    showRound();
+  }
+
+  find('#next-curve').addEventListener('click', () => {
+    chooseRound(rounds.find((item) => !item.result));
+    find('#tabs').scrollIntoView({ block: 'nearest' });
+  });
 
   /* Strokes */
 
-  function startStroke() {
-    if (curve || waiting) return false;
+  function startStroke(position) {
+    if (round.result || waiting) return false;
+    beforeMarks = { shown: round.shown, ghost: round.ghost, missed: round.missed };
     // The first stroke of a new go pushes the last marked go into the background.
-    beforeMarks = { shown, ghost, missed };
-    if (strokesDone === 0 && shown) {
-      ghost = shown;
-      shown = null;
-      missed = [];
+    if (round.strokes.length === 0 && round.shown) {
+      round.ghost = round.shown;
+      round.shown = null;
+      round.missed = [];
     }
     clearTimeout(percentTimer);
     percent = null;
-    beforeStroke = [...drawing];
     strokeLength = 0;
-    live = [];
+    round.strokes.push([[position.x, position.y]]);
     message('');
+    showGraph();
     return true;
   }
 
-  // Draws between two positions on the graph.
-  // Every column between them gets a value, so a fast drag leaves no holes.
-  function drawBetween(from, to) {
-    const first = Math.max(0, Math.round(Math.min(from.column, to.column)));
-    const last = Math.min(game.columns - 1, Math.round(Math.max(from.column, to.column)));
+  // Adds a pen position to the stroke being drawn.
+  function extendStroke(position) {
+    const stroke = round.strokes[round.strokes.length - 1];
+    const [lastX, lastY] = stroke[stroke.length - 1];
+    const moved = Math.hypot(position.x - lastX, position.y - lastY);
+    if (moved < PEN_SPACING) return;
 
-    for (let column = first; column <= last; column += 1) {
-      // How far this column is along the drag, from 0 at "from" to 1 at "to".
-      const along = to.column === from.column ? 1 : (column - from.column) / (to.column - from.column);
-      const output = from.output + (to.output - from.output) * Math.min(1, Math.max(0, along));
-      const onGraph = Math.max(-game.limit, Math.min(game.limit, output));
-      drawing[column] = Math.round(onGraph * 100) / 100;
-    }
-    strokeLength += Math.hypot((to.column - from.column) / columnsPerUnit, to.output - from.output);
-    live.push({ column: to.column, output: to.output });
+    stroke.push([position.x, position.y]);
+    strokeLength += moved;
     showGraphSoon();
   }
 
   // Called when the pen is lifted. Once enough strokes are down, the go is sent to be marked.
   async function endStroke() {
-    live = [];
     // A stroke the pen barely moved in is treated as a stray tap and undone.
     if (strokeLength < game.shortestStroke) {
-      drawing = beforeStroke;
-      ({ shown, ghost, missed } = beforeMarks);
+      round.strokes.pop();
+      round.shown = beforeMarks.shown;
+      round.ghost = beforeMarks.ghost;
+      round.missed = beforeMarks.missed;
       showGraph();
       return message('That was too short to count. Draw a longer line.');
     }
-
-    strokesDone += 1;
-    if (strokesDone < game.strokes) {
+    if (round.strokes.length < round.strokesPerGo) {
       showGraph();
-      return message(`Piece ${strokesDone} of ${game.strokes} drawn. Now draw the next piece.`);
+      return message(`Piece ${round.strokes.length} of ${round.strokesPerGo} drawn. Now draw the next piece.`);
     }
 
     waiting = true;
+    const marking = round;
     try {
-      const result = await send(`/api/machines/${game.id}/go`, { drawing, go: goes + 1 });
-      goes += 1;
-      shown = { drawing, levels: result.levels };
-      flashPercent(result.accuracy);
-      missed = result.missed;
-      exits = result.exits;
-      showGoes();
+      const result = await send(`/api/machines/${marking.id}/go`, { drawing: marking.strokes, go: marking.goes + 1 });
+      marking.goes += 1;
+      marking.shown = { strokes: marking.strokes, levels: result.levels };
+      marking.missed = result.missed;
+      marking.exits = result.exits;
       if (result.finished) {
-        showResult(result);
+        marking.result = result;
+        message('');
       } else {
+        flashPercent(result.accuracy);
         message(`${result.accuracy}%. Trace the green parts and fix the rest.`);
       }
     } catch (error) {
       message(error.message);
     }
     // Whether it worked or not, the next go starts from a clean drawing.
-    drawing = blank();
-    strokesDone = 0;
+    marking.strokes = [];
     waiting = false;
-    showGraph();
-  }
-
-  function showResult(result) {
-    curve = result.curve;
-    asymptotes = result.asymptotes;
-
-    // The big score is cleared so it does not cover the real curve.
-    clearTimeout(percentTimer);
-    percent = null;
-    find('#result-heading').textContent = result.solved
-      ? `Cracked it in ${goesText(goes)} with ${result.accuracy}%`
-      : `Out of goes. Your last one scored ${result.accuracy}%`;
-    find('#result-stars').textContent = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
-    find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
-    find('#result-family').textContent = result.familyName;
-    find('#result-formula').textContent = result.formula;
-
-    find('#result').hidden = false;
-    find('#stroke-info').hidden = true;
-    graph.classList.add('finished');
-    message('');
+    showRound();
   }
 
   /* Drawing with a mouse, finger or stylus */
 
-  let last = null;
+  let drawing = false;
   graph.addEventListener('pointerdown', (event) => {
-    if (!startStroke()) return;
-    last = graphPosition(graph, event, game.limit, game.columns);
-    graph.setPointerCapture(event.pointerId);
     pen.visible = false;
-    drawBetween(last, last);
+    drawing = startStroke(graphPosition(graph, event, game.limit));
+    if (drawing) graph.setPointerCapture(event.pointerId);
   });
   graph.addEventListener('pointermove', (event) => {
-    if (!last) return;
-    const here = graphPosition(graph, event, game.limit, game.columns);
-    drawBetween(last, here);
-    last = here;
+    if (drawing) extendStroke(graphPosition(graph, event, game.limit));
   });
   function liftPointer() {
-    if (!last) return;
-    last = null;
+    if (!drawing) return;
+    drawing = false;
     endStroke();
   }
   graph.addEventListener('pointerup', liftPointer);
@@ -240,25 +282,23 @@ async function start() {
   /* Drawing with the keyboard */
 
   graph.addEventListener('keydown', (event) => {
-    const moves = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, 0.25], ArrowDown: [0, -0.25] };
+    const moves = { ArrowLeft: [-0.2, 0], ArrowRight: [0.2, 0], ArrowUp: [0, 0.2], ArrowDown: [0, -0.2] };
 
     if (event.key === ' ') {
       event.preventDefault();
       if (pen.down) {
         pen.down = false;
         endStroke();
-      } else if (startStroke()) {
+      } else if (startStroke(pen)) {
         pen.down = true;
-        drawBetween(pen, pen);
         message('Pen down. Move with the arrow keys, then press Space to lift it.');
       }
     }
     if (moves[event.key]) {
       event.preventDefault();
-      const before = { column: pen.column, output: pen.output };
-      pen.column = Math.max(0, Math.min(game.columns - 1, pen.column + moves[event.key][0]));
-      pen.output = Math.max(-game.limit, Math.min(game.limit, pen.output + moves[event.key][1]));
-      if (pen.down) drawBetween(before, pen);
+      pen.x = Math.max(-game.limit, Math.min(game.limit, pen.x + moves[event.key][0]));
+      pen.y = Math.max(-game.limit, Math.min(game.limit, pen.y + moves[event.key][1]));
+      if (pen.down) extendStroke(pen);
     }
     pen.visible = true;
     showGraph();
@@ -271,15 +311,7 @@ async function start() {
   // The graph is drawn at its real size, so it needs redrawing when the window changes.
   window.addEventListener('resize', showGraph);
 
-  const date = new Date(`${game.date}T00:00`);
-  const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-  find('#machine-details').textContent = `No. ${game.id} · ${dateText} · difficulty ${game.difficulty} of 3`;
-  find('#stroke-info').textContent = game.strokes === 1
-    ? 'One stroke per go. Lift your pen and it is marked.'
-    : `This curve is in ${game.strokes} pieces, so each go is ${game.strokes} strokes.`;
-
-  showGoes();
-  showGraph();
+  showRound();
 }
 
 start().catch((error) => message(error.message));
