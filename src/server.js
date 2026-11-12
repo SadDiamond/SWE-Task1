@@ -27,58 +27,36 @@ function route(handler) {
   return (request, response, next) => handler(request, response).catch(next);
 }
 
-// Today's machine. The rule (family, a, b, c) is deliberately left out.
+// Today's curve. Only what the page needs to set up the game; nothing about the curve itself.
 app.get('/api/today', route(async (_request, response) => {
   const machine = await rules.machineFor(rules.todayDate());
   response.json({
     id: machine.id,
     date: machine.play_date,
     difficulty: machine.difficulty,
-    maxTests: rules.MAX_TESTS,
-    minInput: rules.MIN_INPUT,
-    maxInput: rules.MAX_INPUT
+    limit: rules.LIMIT,
+    columns: rules.COLUMNS,
+    maxGoes: rules.MAX_GOES
   });
 }));
 
-// Runs one test on a machine: a number goes in, a number comes out.
-app.post('/api/machines/:id/test', route(async (request, response) => {
+// Checks one go: a freehand drawing with one value (or null) for each column of the graph.
+app.post('/api/machines/:id/go', route(async (request, response) => {
   const id = Number.parseInt(request.params.id, 10);
-  const input = request.body.input;
-
-  if (!Number.isInteger(input) || input < rules.MIN_INPUT || input > rules.MAX_INPUT) {
-    return response.status(400).json({
-      error: `Enter a whole number from ${rules.MIN_INPUT} to ${rules.MAX_INPUT}.`
-    });
-  }
-
-  const machines = await all('SELECT * FROM machines WHERE id = ? AND play_date <= ?', [id, rules.todayDate()]);
-  if (machines.length === 0) return response.status(404).json({ error: 'Machine not found.' });
-
-  response.json({ input, output: rules.evaluate(machines[0], input) });
-}));
-
-// The kinds of function a machine can be, for the "name the type" question.
-app.get('/api/families', route(async (_request, response) => {
-  response.json(await all('SELECT id, name, description FROM families ORDER BY id'));
-}));
-
-// Marks an answer: a drawing of the whole curve and a guess at the type.
-app.post('/api/machines/:id/answer', route(async (request, response) => {
-  const id = Number.parseInt(request.params.id, 10);
-  const { drawing, familyId, testsUsed } = request.body;
-  const points = rules.MAX_INPUT - rules.MIN_INPUT + 1;
+  const { drawing, go } = request.body;
 
   const validDrawing = Array.isArray(drawing)
-    && drawing.length === points
-    && drawing.every((value) => Number.isInteger(value) && Math.abs(value) <= 100000);
+    && drawing.length === rules.COLUMNS
+    && drawing.every((value) => value === null
+      || (typeof value === 'number' && Number.isFinite(value) && Math.abs(value) <= rules.LIMIT));
   if (!validDrawing) {
-    return response.status(400).json({ error: `Draw a value for all ${points} inputs before submitting.` });
+    return response.status(400).json({ error: 'That drawing is not in the right format.' });
   }
-  if (![rules.LINE, rules.CURVE, rules.REMAINDER].includes(familyId)) {
-    return response.status(400).json({ error: 'Choose which type of function you think it is.' });
+  if (drawing.every((value) => value === null)) {
+    return response.status(400).json({ error: 'Draw something on the graph first.' });
   }
-  if (!Number.isInteger(testsUsed) || testsUsed < 0 || testsUsed > rules.MAX_TESTS) {
-    return response.status(400).json({ error: 'The number of tests used is not valid.' });
+  if (!Number.isInteger(go) || go < 1 || go > rules.MAX_GOES) {
+    return response.status(400).json({ error: 'That go number is not valid.' });
   }
 
   const machines = await all(`
@@ -87,23 +65,30 @@ app.post('/api/machines/:id/answer', route(async (request, response) => {
     INNER JOIN families ON families.id = machines.family_id
     WHERE machines.id = ? AND machines.play_date <= ?
   `, [id, rules.todayDate()]);
-  if (machines.length === 0) return response.status(404).json({ error: 'Machine not found.' });
+  if (machines.length === 0) return response.status(404).json({ error: 'Curve not found.' });
 
   const machine = machines[0];
-  const truth = rules.allOutputs(machine);
-  const accuracy = rules.accuracy(drawing, truth);
-  const typeCorrect = familyId === machine.family_id;
-  const score = rules.finalScore(accuracy, typeCorrect, testsUsed);
+  const curve = rules.visibleCurve(machine);
+  const result = rules.judge(drawing, curve);
+  const finished = result.solved || go === rules.MAX_GOES;
 
-  response.json({
-    accuracy,
-    typeCorrect,
-    score,
-    stars: rules.starsFor(score),
-    truth,
-    familyName: machine.family_name,
-    formula: rules.describe(machine)
-  });
+  const reply = {
+    marks: result.marks,
+    missed: result.missed,
+    accuracy: result.accuracy,
+    solved: result.solved,
+    finished,
+    exits: rules.exits(machine)
+  };
+  // The real curve is only sent once the round is over.
+  if (finished) {
+    reply.curve = curve;
+    reply.stars = rules.starsFor(result.solved, go);
+    reply.familyName = machine.family_name;
+    reply.formula = rules.describe(machine);
+    reply.asymptotes = rules.asymptotes(machine);
+  }
+  response.json(reply);
 }));
 
 app.use('/api', (_request, response) => {

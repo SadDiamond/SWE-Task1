@@ -1,99 +1,220 @@
 const { all, run } = require('./db');
 
-const LINE = 1;
-const CURVE = 2;
-const REMAINDER = 3;
+// The graph window: inputs and outputs both run from -10 to 10.
+const LIMIT = 10;
+// The curve is checked at every 0.1 across the window: -10.0, -9.9 ... 10.0.
+const STEPS_PER_UNIT = 10;
+const COLUMNS = 2 * LIMIT * STEPS_PER_UNIT + 1;
 
-// Inputs a player is allowed to test, and the range used to compare two rules.
-const MIN_INPUT = -20;
-const MAX_INPUT = 20;
+const MAX_GOES = 5;
+// A drawing this accurate (as a percentage) counts as solved.
+const SOLVED_AT = 85;
+// How far off a drawn point can be and still count as spot on, or as close.
+const SPOT_ON = 0.5;
+const CLOSE = 1.5;
 const DAYS_OF_HISTORY = 30;
-// How many tests a player gets on one machine.
-const MAX_TESTS = 10;
 
-// Works out what a machine gives back for an input.
+const LINE = 1;
+const PARABOLA = 2;
+const V_SHAPE = 3;
+const CUBIC = 4;
+const WAVE = 5;
+const ROOT = 6;
+const EXPONENTIAL = 7;
+const HYPERBOLA = 8;
+const SLANTED = 9;
+
+// The input for a column number: column 0 is -10, column 100 is 0, column 200 is 10.
+function inputFor(column) {
+  return column / STEPS_PER_UNIT - LIMIT;
+}
+
+// Works out the curve's output for an input. Gives null where the curve does not exist.
 function evaluate(machine, x) {
-  if (machine.family_id === LINE) {
-    return machine.a * x + machine.b;
+  const { a, b, c } = machine;
+
+  switch (machine.family_id) {
+    case LINE:
+      return (a / 2) * x + b;
+    case PARABOLA:
+      return (a / 4) * (x - b) ** 2 + c;
+    case V_SHAPE:
+      return (a / 2) * Math.abs(x - b) + c;
+    case CUBIC:
+      return (a / 8) * (x - b) ** 3 + c;
+    case WAVE:
+      return a * Math.sin((Math.PI * x) / b) + c;
+    case ROOT:
+      return x < b ? null : a * Math.sqrt(x - b) + c;
+    case EXPONENTIAL:
+      return a * 2 ** (x / b) + c;
+    case HYPERBOLA:
+      return x === b ? null : a / (x - b) + c;
+    default:
+      // Slanted hyperbola
+      return x === b ? null : (c / 2) * x + a / (x - b);
   }
-  if (machine.family_id === CURVE) {
-    return machine.a * x * x + machine.b * x + machine.c;
-  }
-  // Remainder: the extra "+ c) % c" keeps the answer positive when the input is negative.
-  const value = machine.a * x + machine.b;
-  return ((value % machine.c) + machine.c) % machine.c;
 }
 
-// Two rules count as the same if they agree on every input a player could test.
-// This means a guess written a different way is still accepted.
-function sameRule(first, second) {
-  for (let x = MIN_INPUT; x <= MAX_INPUT; x += 1) {
-    if (evaluate(first, x) !== evaluate(second, x)) return false;
+// The curve as a list with one output for each column.
+// A column is null where the curve does not exist or is off the top or bottom of the graph.
+function visibleCurve(machine) {
+  const curve = [];
+  for (let column = 0; column < COLUMNS; column += 1) {
+    const output = evaluate(machine, inputFor(column));
+    const onScreen = output !== null && Math.abs(output) <= LIMIT;
+    curve.push(onScreen ? Math.round(output * 100) / 100 : null);
   }
-  return true;
+  return curve;
 }
 
-// Every output the machine gives, from the smallest allowed input to the largest.
-function allOutputs(machine) {
-  const outputs = [];
-  for (let x = MIN_INPUT; x <= MAX_INPUT; x += 1) {
-    outputs.push(evaluate(machine, x));
+// The places where the curve leaves or comes back onto the graph, through the top or the bottom.
+function exits(machine) {
+  const found = [];
+  let before = null;
+
+  for (let column = 0; column < COLUMNS; column += 1) {
+    const output = evaluate(machine, inputFor(column));
+    let now = 'on';
+    if (output === null) now = 'none';
+    else if (output > LIMIT) now = 'top';
+    else if (output < -LIMIT) now = 'bottom';
+
+    // An exit is a step between "on the graph" and "off the top or bottom".
+    const offEdge = now === 'on' ? before : now;
+    const crossed = before !== null && now !== before && (now === 'on' || before === 'on');
+    if (crossed && (offEdge === 'top' || offEdge === 'bottom')) {
+      found.push({ input: Math.round(inputFor(column) * 10) / 10, side: offEdge });
+    }
+    before = now;
   }
-  return outputs;
+  return found;
 }
 
-// How close a drawing is to the real outputs, as a percentage.
-// drawing and truth are lists with one number for each input.
-// A point scores full marks when exact and nothing once it is 15% of the graph's height away.
-function accuracy(drawing, truth) {
-  const height = Math.max(10, Math.max(...truth) - Math.min(...truth));
-  const tolerance = height * 0.15;
-  let total = 0;
+// Compares a drawing with the real curve, column by column.
+// drawing and curve are lists of numbers, with null where nothing is drawn or nothing exists.
+// marks: 'g' spot on, 'a' close, 'r' wrong, null where nothing was drawn.
+// missed: true where the curve exists but nothing was drawn.
+function judge(drawing, curve) {
+  const marks = [];
+  const missed = [];
+  let points = 0;
+  let counted = 0;
 
-  truth.forEach((output, index) => {
-    const error = Math.abs(drawing[index] - output);
-    total += Math.max(0, 1 - error / tolerance);
+  curve.forEach((real, column) => {
+    const drawn = drawing[column];
+    let mark = null;
+
+    if (drawn !== null && real !== null) {
+      const error = Math.abs(drawn - real);
+      if (error <= SPOT_ON) mark = 'g';
+      else if (error <= CLOSE) mark = 'a';
+      else mark = 'r';
+    } else if (drawn !== null) {
+      mark = 'r';
+    }
+
+    // Columns that are empty in both the drawing and the real curve are not counted.
+    if (drawn !== null || real !== null) {
+      counted += 1;
+      if (mark === 'g') points += 1;
+      if (mark === 'a') points += 0.5;
+    }
+    marks.push(mark);
+    missed.push(drawn === null && real !== null);
   });
-  return Math.round((total / truth.length) * 100);
+
+  const accuracy = counted === 0 ? 0 : Math.round((points / counted) * 100);
+  return { marks, missed, accuracy, solved: accuracy >= SOLVED_AT };
 }
 
-// Final score: accuracy, plus 10 for naming the right type, plus 1 for every test not used.
-function finalScore(accuracyPercent, typeCorrect, testsUsed) {
-  return accuracyPercent + (typeCorrect ? 10 : 0) + (MAX_TESTS - testsUsed);
+// Stars for a finished round: fewer goes is better, and unsolved gets none.
+function starsFor(solved, goes) {
+  if (!solved) return 0;
+  if (goes <= 2) return 3;
+  if (goes <= 4) return 2;
+  return 1;
 }
 
-function starsFor(score) {
-  if (score >= 100) return 3;
-  if (score >= 80) return 2;
-  if (score >= 60) return 1;
-  return 0;
+/* Writing the formula out */
+
+// Turns -0.5 into "−0.5" and drops pointless decimals.
+function text(number) {
+  return String(Math.round(number * 1000) / 1000).replace('-', '−');
 }
 
-// Writes "+ 3" or "− 3" for the end of a formula, or nothing for zero.
-function signed(number, letter = '') {
+// A multiplier in front of something: 1 disappears, -1 becomes just a minus sign.
+function times(number) {
+  if (number === 1) return '';
+  if (number === -1) return '−';
+  return text(number);
+}
+
+// "x − 2", "x + 3" or just "x".
+function shifted(amount) {
+  if (amount === 0) return 'x';
+  return amount > 0 ? `x − ${amount}` : `x + ${-amount}`;
+}
+
+// " + 3", " − 3" or nothing, for the end of a formula.
+function plus(number) {
   if (number === 0) return '';
-  return ` ${number < 0 ? '−' : '+'} ${Math.abs(number)}${letter}`;
+  return number > 0 ? ` + ${text(number)}` : ` − ${text(-number)}`;
 }
 
-// The machine's rule written out, e.g. "y = 3x − 2".
+function bracket(amount) {
+  return amount === 0 ? 'x' : `(${shifted(amount)})`;
+}
+
 function describe(machine) {
-  const lead = (number, letters) => {
-    if (number === 1) return letters;
-    if (number === -1) return `−${letters}`;
-    return `${String(number).replace('-', '−')}${letters}`;
-  };
+  const { a, b, c } = machine;
 
-  if (machine.family_id === LINE) {
-    return `y = ${lead(machine.a, 'x')}${signed(machine.b)}`;
+  switch (machine.family_id) {
+    case LINE:
+      return `y = ${times(a / 2)}x${plus(b)}`;
+    case PARABOLA:
+      return `y = ${times(a / 4)}${bracket(b)}²${plus(c)}`;
+    case V_SHAPE:
+      return `y = ${times(a / 2)}|${shifted(b)}|${plus(c)}`;
+    case CUBIC:
+      return `y = ${times(a / 8)}${bracket(b)}³${plus(c)}`;
+    case WAVE:
+      return `y = ${a === 1 ? '' : `${a} `}sin(πx ÷ ${b})${plus(c)}`;
+    case ROOT:
+      return `y = ${times(a)}√(${shifted(b)})${plus(c)}`;
+    case EXPONENTIAL: {
+      let power = `2^(x ÷ ${text(b)})`;
+      if (b === 1) power = '2^x';
+      if (b === -1) power = '2^(−x)';
+      const front = Math.abs(a) === 1 ? times(a) : `${text(a)} × `;
+      return `y = ${front}${power}${plus(c)}`;
+    }
+    case HYPERBOLA:
+      return `y = ${text(a)} ÷ ${bracket(b)}${plus(c)}`;
+    default:
+      return `y = ${times(c / 2)}x ${a > 0 ? '+' : '−'} ${Math.abs(a)} ÷ ${bracket(b)}`;
   }
-  if (machine.family_id === CURVE) {
-    return `y = ${lead(machine.a, 'x²')}${signed(machine.b, 'x')}${signed(machine.c)}`;
-  }
-  return `y = remainder of (${lead(machine.a, 'x')}${signed(machine.b)}) ÷ ${machine.c}`;
 }
+
+// The lines a curve gets close to but never touches. Shown only when the answer is revealed.
+function asymptotes(machine) {
+  const { b, c } = machine;
+  if (machine.family_id === HYPERBOLA) {
+    return [{ kind: 'vertical', input: b }, { kind: 'sloped', slope: 0, start: c }];
+  }
+  if (machine.family_id === SLANTED) {
+    return [{ kind: 'vertical', input: b }, { kind: 'sloped', slope: c / 2, start: 0 }];
+  }
+  if (machine.family_id === EXPONENTIAL) {
+    return [{ kind: 'sloped', slope: 0, start: c }];
+  }
+  return [];
+}
+
+/* Making each day's curve */
 
 // Gives the same "random" numbers every time for the same seed,
-// so a date always produces the same machine.
+// so a date always produces the same curve.
 function numberMaker(seed) {
   let value = seed;
   return (limit) => {
@@ -110,50 +231,71 @@ function todayDate() {
   return new Date().toLocaleDateString('en-CA');
 }
 
-// A whole number from low to high, never zero.
-function nonZero(next, low, high) {
-  let value = 0;
-  while (value === 0) value = low + next(high - low + 1);
-  return value;
+// Picks the numbers for one curve of the given family.
+function randomMachine(next, familyId) {
+  // between(-3, 3) gives a whole number from -3 to 3. nonZero never gives 0.
+  const between = (low, high) => low + next(high - low + 1);
+  const nonZero = (low, high) => {
+    let value = 0;
+    while (value === 0) value = between(low, high);
+    return value;
+  };
+  const pick = (choices) => choices[next(choices.length)];
+
+  switch (familyId) {
+    case LINE:
+      return { a: nonZero(-6, 6), b: between(-6, 6), c: 0 };
+    case PARABOLA:
+      return { a: pick([-4, -2, -1, 1, 2, 4]), b: between(-5, 5), c: between(-8, 8) };
+    case V_SHAPE:
+      return { a: nonZero(-4, 4), b: between(-5, 5), c: between(-6, 6) };
+    case CUBIC:
+      return { a: pick([-2, -1, 1, 2]), b: between(-4, 4), c: between(-5, 5) };
+    case WAVE:
+      return { a: between(1, 5), b: between(2, 5), c: between(-4, 4) };
+    case ROOT:
+      return { a: nonZero(-3, 3), b: between(-9, 0), c: between(-6, 6) };
+    case EXPONENTIAL:
+      return { a: nonZero(-3, 3), b: nonZero(-3, 3), c: between(-6, 6) };
+    case HYPERBOLA:
+      return { a: nonZero(-6, 6), b: between(-5, 5), c: between(-5, 5) };
+    default:
+      return { a: pick([-6, -4, -2, 2, 4, 6]), b: between(-4, 4), c: pick([-2, -1, 1, 2]) };
+  }
 }
 
-// Builds the machine for a date. Difficulty decides the family and how big the numbers are.
+// Builds the curve for a date. Every family comes up equally often.
 function makeMachine(date) {
   const next = numberMaker(dayNumber(date) * 7919);
-  const difficulty = 1 + next(3);
+  const familyId = 1 + next(9);
 
-  if (difficulty === 1) {
-    return { family_id: LINE, a: 1 + next(5), b: next(21) - 10, c: 0, difficulty };
+  // Keep trying until a good part of the curve is actually on the graph.
+  let machine;
+  let onScreen = 0;
+  while (onScreen < COLUMNS * 0.3) {
+    machine = { family_id: familyId, ...randomMachine(next, familyId) };
+    onScreen = visibleCurve(machine).filter((output) => output !== null).length;
   }
-  if (difficulty === 2 && next(2) === 0) {
-    return { family_id: LINE, a: nonZero(next, -9, 9), b: next(41) - 20, c: 0, difficulty };
-  }
-  if (difficulty === 2) {
-    return { family_id: CURVE, a: 1, b: next(7) - 3, c: next(21) - 10, difficulty };
-  }
-  if (next(2) === 0) {
-    return { family_id: CURVE, a: nonZero(next, -3, 3), b: next(19) - 9, c: next(41) - 20, difficulty };
-  }
-
-  // Remainder: a must not be a multiple of c, or every output would be the same.
-  const c = 3 + next(7);
-  const a = 1 + next(c - 1);
-  return { family_id: REMAINDER, a, b: next(c), c, difficulty };
+  return machine;
 }
 
-// Finds the machine for a date, creating and saving it the first time it is asked for.
+// Finds the curve for a date, creating and saving it the first time it is asked for.
 async function machineFor(date) {
   const made = makeMachine(date);
   await run(
-    `INSERT OR IGNORE INTO machines (play_date, family_id, a, b, c, difficulty)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [date, made.family_id, made.a, made.b, made.c, made.difficulty]
+    'INSERT OR IGNORE INTO machines (play_date, family_id, a, b, c) VALUES (?, ?, ?, ?, ?)',
+    [date, made.family_id, made.a, made.b, made.c]
   );
-  const machines = await all('SELECT * FROM machines WHERE play_date = ?', [date]);
+  const machines = await all(`
+    SELECT machines.*, families.name AS family_name, families.difficulty
+    FROM machines
+    INNER JOIN families ON families.id = machines.family_id
+    WHERE machines.play_date = ?
+  `, [date]);
   return machines[0];
 }
 
-// Makes sure the last month of machines exists, so there are past days to play.
+// Makes sure the last month of curves exists, so there are past days to play.
 async function fillHistory() {
   const today = dayNumber(todayDate());
   for (let day = today - DAYS_OF_HISTORY; day <= today; day += 1) {
@@ -162,6 +304,8 @@ async function fillHistory() {
 }
 
 module.exports = {
-  CURVE, LINE, MAX_INPUT, MAX_TESTS, MIN_INPUT, REMAINDER,
-  accuracy, allOutputs, describe, evaluate, fillHistory, finalScore, machineFor, makeMachine, sameRule, starsFor, todayDate
+  COLUMNS, LIMIT, MAX_GOES, STEPS_PER_UNIT,
+  LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
+  asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machineFor, makeMachine,
+  starsFor, todayDate, visibleCurve
 };
