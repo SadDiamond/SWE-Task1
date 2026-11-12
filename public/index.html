@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="A daily puzzle: test the machine, read the graph, work out its rule.">
+    <meta name="description" content="A daily puzzle: test the machine, then draw the curve you think it makes.">
     <link rel="stylesheet" href="/styles.css">
     <title>Placeholder</title>
   </head>
@@ -25,69 +25,103 @@
         <p id="machine-details">Loading…</p>
       </div>
 
-      <div class="bench">
-        <section class="panel machine" aria-labelledby="machine-heading">
-          <h2 id="machine-heading">Machine</h2>
+      <section class="sheet" aria-labelledby="graph-heading">
+        <h2 id="graph-heading" class="visually-hidden">Graph</h2>
 
-          <form id="test-form">
-            <div class="flow">
-              <div class="port">
-                <label for="input">Input</label>
-                <input id="input" class="readout" type="number" step="1" required
-                       aria-describedby="input-help">
-              </div>
-              <span class="arrow" aria-hidden="true">→</span>
-              <div class="box" aria-hidden="true">?</div>
-              <span class="arrow" aria-hidden="true">→</span>
-              <div class="port">
-                <span class="label" id="output-label">Output</span>
-                <output id="output" class="readout" for="input" aria-labelledby="output-label">–</output>
-              </div>
-            </div>
-
-            <p id="input-help" class="help"></p>
-            <button type="submit" class="primary">Run test</button>
-          </form>
-
-          <div class="energy">
-            <p id="energy-text"></p>
-            <div id="energy-cells" class="cells" aria-hidden="true"></div>
-          </div>
-
-          <p id="form-status" class="status" role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="panel log" aria-labelledby="log-heading">
-          <h2 id="log-heading">Test log</h2>
-          <p id="log-empty" class="help">No tests yet. Try an input of 0 to start.</p>
-          <table id="log-table" hidden>
-            <thead>
-              <tr>
-                <th scope="col">Input</th>
-                <th scope="col">Output</th>
-                <th scope="col">Test</th>
-              </tr>
-            </thead>
-            <tbody id="log-rows"></tbody>
-          </table>
-        </section>
-        <section class="panel screen" aria-labelledby="graph-heading">
-          <h2 id="graph-heading">Graph</h2>
-          <div class="graph-tools">
+        <div class="graph-bar">
+          <fieldset class="switch">
+            <legend class="visually-hidden">Dragging on the graph</legend>
+            <label><input type="radio" name="mode" value="draw" checked> Draw</label>
+            <label><input type="radio" name="mode" value="move"> Move</label>
+          </fieldset>
+          <div class="zoom">
             <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
             <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
             <button type="button" id="zoom-fit">Fit</button>
           </div>
-          <svg id="graph" class="graph" viewBox="0 0 480 320" role="img" tabindex="0"
-               aria-labelledby="graph-summary" aria-describedby="graph-help">
-            <title id="graph-summary">Graph of your tests. No tests yet.</title>
-          </svg>
-          <p id="graph-help" class="help">
-            Drag to move around, scroll or use + and − to zoom, Fit to see everything.
-            With the graph selected, the arrow keys move it too.
-          </p>
+        </div>
+
+        <svg id="graph" class="graph" role="img" tabindex="0"
+             aria-labelledby="graph-summary" aria-describedby="graph-help">
+          <title id="graph-summary">Graph of your tests. No tests yet.</title>
+        </svg>
+
+        <p id="graph-help" class="help">
+          <strong>Draw</strong>: drag across the graph to sketch the curve.
+          <strong>Move</strong>: drag to look around. Scroll or use + and − to zoom.
+        </p>
+      </section>
+
+      <div id="play" class="steps">
+        <section class="step" aria-labelledby="test-heading">
+          <h2 id="test-heading"><span class="number">1</span> Test the machine</h2>
+          <p>Give it a number and see what comes out. Each test plots a point.</p>
+
+          <form id="test-form" class="test-form">
+            <label for="input">Input</label>
+            <input id="input" type="number" step="1" required aria-describedby="input-help">
+            <button type="submit">Run test</button>
+          </form>
+          <p id="input-help" class="help"></p>
+
+          <p id="energy-text" class="energy-text"></p>
+          <div id="energy-cells" class="cells" aria-hidden="true"></div>
+
+          <details class="log">
+            <summary>Test log</summary>
+            <p id="log-empty" class="help">No tests yet. Try an input of 0 to start.</p>
+            <table id="log-table" hidden>
+              <thead>
+                <tr>
+                  <th scope="col">Input</th>
+                  <th scope="col">Output</th>
+                  <th scope="col">Test</th>
+                </tr>
+              </thead>
+              <tbody id="log-rows"></tbody>
+            </table>
+          </details>
         </section>
+
+        <section class="step" aria-labelledby="draw-heading">
+          <h2 id="draw-heading"><span class="number">2</span> Draw the curve</h2>
+          <p>
+            Sketch what you think the machine does for every input, from one edge of the
+            graph to the other. Go over any part again to change it. If you think the curve
+            goes off the top or bottom, zoom out first.
+          </p>
+          <p id="draw-progress" class="progress"></p>
+          <button type="button" id="clear-drawing">Clear drawing</button>
+        </section>
+
+        <section class="step" aria-labelledby="type-heading">
+          <h2 id="type-heading"><span class="number">3</span> Name the type</h2>
+          <fieldset id="family-list" class="families">
+            <legend>Which kind of function is it? Worth 10 extra points.</legend>
+          </fieldset>
+        </section>
+
+        <div class="submit">
+          <button type="button" id="submit-answer" class="primary">Check my answer</button>
+          <p id="form-status" class="status" role="status" aria-live="polite"></p>
+        </div>
       </div>
+
+      <section id="result" class="result" aria-labelledby="result-heading" hidden>
+        <h2 id="result-heading">Result</h2>
+        <p class="score"><span id="result-score"></span> <span id="result-stars" class="stars"></span></p>
+        <dl>
+          <dt>Accuracy of your drawing</dt>
+          <dd id="result-accuracy"></dd>
+          <dt>Type</dt>
+          <dd id="result-type"></dd>
+          <dt>Tests not used</dt>
+          <dd id="result-tests"></dd>
+          <dt>The rule was</dt>
+          <dd id="result-formula" class="formula"></dd>
+        </dl>
+        <p class="help">The red line on the graph is the real curve. Yours is in blue.</p>
+      </section>
     </main>
 
     <footer>
