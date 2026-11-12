@@ -8,6 +8,8 @@ const REMAINDER = 3;
 const MIN_INPUT = -20;
 const MAX_INPUT = 20;
 const DAYS_OF_HISTORY = 30;
+// How many tests a player gets on one machine.
+const MAX_TESTS = 10;
 
 // Works out what a machine gives back for an input.
 function evaluate(machine, x) {
@@ -101,6 +103,6 @@ async function fillHistory() {
 }
 
 module.exports = {
-  CURVE, LINE, MAX_INPUT, MIN_INPUT, REMAINDER,
+  CURVE, LINE, MAX_INPUT, MAX_TESTS, MIN_INPUT, REMAINDER,
   evaluate, fillHistory, machineFor, makeMachine, sameRule, todayDate
 };
