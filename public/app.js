@@ -13,8 +13,9 @@ function element(tag, text, className) {
   return item;
 }
 
-function countText(count, word) {
-  return count === 1 ? `1 ${word}` : `${count} ${word}s`;
+// "1 go" or "3 goes".
+function goesText(count) {
+  return count === 1 ? '1 go' : `${count} goes`;
 }
 
 // Fetches JSON from the server and turns a failed request into a readable error.
@@ -41,210 +42,178 @@ function send(url, body) {
 }
 
 async function start() {
-  const machine = await request('/api/today');
-  const families = await request('/api/families');
+  const game = await request('/api/today');
   const graph = find('#graph');
-  const input = find('#input');
-  const inputCount = machine.maxInput - machine.minInput + 1;
+  const blank = () => new Array(game.columns).fill(null);
 
-  // Every test run so far, in the order they were made: { input, output }.
-  const tests = [];
-  // The player's drawing: one output for each input, undefined where nothing is drawn yet.
-  let drawing = new Array(inputCount).fill(undefined);
-  // The real outputs. Only known after the answer has been checked.
-  let truth = null;
-  // The part of the graph on screen. null means "fit everything", until the player moves it.
-  let view = null;
-
-  function mode() {
-    return find('input[name="mode"]:checked').value;
-  }
-
-  function currentView() {
-    if (view) return view;
-    // The fitted view follows the test results, and the real curve once it is known.
-    // It must not follow the drawing, or the graph would rescale under the player's pen.
-    const outputs = tests.map((test) => test.output).concat(truth || []);
-    return fitView(outputs, machine.minInput, machine.maxInput);
-  }
+  // The drawing: one output for each column across the graph, null where nothing is drawn.
+  let drawing = blank();
+  // Feedback for each column from the last check. Cleared wherever the player draws again.
+  let marks = blank();
+  // A copy of the drawing from every go so far.
+  const attempts = [];
+  let missed = [];
+  let exits = [];
+  // The answer, once the round is over.
+  let curve = null;
+  let asymptotes = [];
+  let goes = 0;
+  // The keyboard pen. Only shown while the graph is selected with the keyboard.
+  const pen = { column: (game.columns - 1) / 2, output: 0, down: false, visible: false };
 
   function showGraph() {
-    const picture = { tests, drawing, truth, firstInput: machine.minInput, showGaps: mode() === 'draw' && !truth };
-    drawGraph(graph, picture, currentView());
-    // While drawing, the graph must not scroll the page under the player's finger.
-    graph.classList.toggle('drawing-mode', mode() === 'draw' && !truth);
+    drawGraph(graph, {
+      drawing,
+      marks,
+      // The newest attempt is the drawing on screen, so only older ones are shown as faint ghosts.
+      ghosts: attempts.slice(0, -1),
+      missed,
+      exits,
+      curve,
+      asymptotes,
+      pen: pen.visible && !curve ? pen : null
+    }, game.limit);
   }
 
-  function setView(newView) {
-    view = newView;
-    showGraph();
-  }
-
-  /* Step 1: testing */
-
-  function showEnergy() {
-    const left = machine.maxTests - tests.length;
-    find('#energy-text').textContent = `${countText(left, 'test')} left`;
-
-    const cells = find('#energy-cells');
-    cells.replaceChildren();
-    for (let index = 0; index < machine.maxTests; index += 1) {
-      cells.append(element('span', undefined, index < left ? 'cell full' : 'cell'));
+  function showGoes() {
+    const dots = find('#goes');
+    dots.replaceChildren();
+    for (let index = 0; index < game.maxGoes; index += 1) {
+      dots.append(element('span', undefined, index < goes ? 'go used' : 'go'));
     }
-    find('#test-form button').disabled = left === 0;
-    input.disabled = left === 0;
+    find('#goes-text').textContent = `${goesText(game.maxGoes - goes)} left`;
   }
 
-  // The log is sorted by input, because patterns are easier to see that way.
-  function showLog() {
-    const rows = find('#log-rows');
-    const sorted = tests
-      .map((test, index) => ({ ...test, number: index + 1 }))
-      .sort((first, second) => first.input - second.input);
-
-    rows.replaceChildren();
-    sorted.forEach((test) => {
-      const row = document.createElement('tr');
-      const heading = element('th', test.input);
-      heading.scope = 'row';
-      row.append(heading, element('td', test.output), element('td', `#${test.number}`));
-      if (test.number === tests.length) row.className = 'newest';
-      rows.append(row);
-    });
-    find('#log-table').hidden = tests.length === 0;
-    find('#log-empty').hidden = tests.length > 0;
+  function tool() {
+    return find('input[name="tool"]:checked').value;
   }
 
-  find('#test-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const value = Number(input.value);
+  // Draws (or rubs out) between two positions on the graph.
+  // Every column between them gets a value, so a fast drag leaves no holes.
+  function drawBetween(from, to) {
+    if (curve) return;
+    const first = Math.round(Math.min(from.column, to.column));
+    const last = Math.round(Math.max(from.column, to.column));
 
-    // Testing the same number twice would waste a test.
-    const earlier = tests.find((test) => test.input === value);
-    if (earlier) {
-      return message(`You already tested ${value}. It gave ${earlier.output}. No test was used.`);
-    }
-    try {
-      tests.push(await send(`/api/machines/${machine.id}/test`, { input: value }));
-      showEnergy();
-      showLog();
-      // Go back to the fitted view so the new point is always visible.
-      setView(null);
-      message('');
-      input.select();
-    } catch (error) {
-      message(error.message);
-    }
-  });
-
-  /* Step 2: drawing */
-
-  function showProgress() {
-    const missing = drawing.filter((value) => value === undefined).length;
-    find('#draw-progress').textContent = missing === 0
-      ? 'Your drawing covers every input.'
-      : `${countText(missing, 'input')} still to draw. They are shaded on the graph.`;
-  }
-
-  // Called while the player drags in Draw mode. from and to are positions on the graph.
-  // Every whole-number input between the two positions gets a value, so fast drags leave no holes.
-  function draw(from, to) {
-    if (truth) return;
-    const first = Math.round(Math.min(from.input, to.input));
-    const last = Math.round(Math.max(from.input, to.input));
-
-    for (let x = first; x <= last; x += 1) {
-      if (x < machine.minInput || x > machine.maxInput) continue;
-      // How far x is along the drag, from 0 at "from" to 1 at "to".
-      const along = to.input === from.input ? 1 : (x - from.input) / (to.input - from.input);
+    for (let column = first; column <= last; column += 1) {
+      if (column < 0 || column >= game.columns) continue;
+      // How far this column is along the drag, from 0 at "from" to 1 at "to".
+      const along = to.column === from.column ? 1 : (column - from.column) / (to.column - from.column);
       const output = from.output + (to.output - from.output) * Math.min(1, Math.max(0, along));
-      drawing[x - machine.minInput] = Math.round(output);
+      const onGraph = Math.max(-game.limit, Math.min(game.limit, output));
+
+      drawing[column] = tool() === 'pen' ? Math.round(onGraph * 100) / 100 : null;
+      marks[column] = null;
     }
     showGraph();
-    showProgress();
-    message('');
   }
 
-  find('#clear-drawing').addEventListener('click', () => {
-    drawing = new Array(inputCount).fill(undefined);
-    showGraph();
-    showProgress();
+  /* Drawing with a mouse, finger or stylus */
+
+  let last = null;
+  graph.addEventListener('pointerdown', (event) => {
+    last = graphPosition(graph, event, game.limit, game.columns);
+    graph.setPointerCapture(event.pointerId);
+    pen.visible = false;
+    message('');
+    drawBetween(last, last);
+  });
+  graph.addEventListener('pointermove', (event) => {
+    if (!last) return;
+    const here = graphPosition(graph, event, game.limit, game.columns);
+    drawBetween(last, here);
+    last = here;
+  });
+  graph.addEventListener('pointerup', () => {
+    last = null;
+  });
+  graph.addEventListener('pointercancel', () => {
+    last = null;
   });
 
-  /* Step 3: naming the type */
+  /* Drawing with the keyboard */
 
-  families.forEach((family) => {
-    const label = document.createElement('label');
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'family';
-    radio.value = family.id;
-    label.append(radio, element('strong', family.name), element('span', family.description));
-    find('#family-list').append(label);
-  });
-
-  /* Checking the answer */
-
-  find('#submit-answer').addEventListener('click', async () => {
-    const chosen = find('input[name="family"]:checked');
-    if (drawing.includes(undefined)) {
-      return message('Finish your drawing first. The shaded inputs still need a value.');
+  graph.addEventListener('keydown', (event) => {
+    const moves = { ArrowLeft: [-2, 0], ArrowRight: [2, 0], ArrowUp: [0, 0.25], ArrowDown: [0, -0.25] };
+    if (event.key === ' ') {
+      event.preventDefault();
+      pen.down = !pen.down;
+      if (pen.down) drawBetween(pen, pen);
+      message(pen.down ? 'Pen down.' : 'Pen up.');
     }
-    if (!chosen) return message('Choose which type of function you think it is.');
+    if (moves[event.key]) {
+      event.preventDefault();
+      const before = { column: pen.column, output: pen.output };
+      pen.column = Math.max(0, Math.min(game.columns - 1, pen.column + moves[event.key][0]));
+      pen.output = Math.max(-game.limit, Math.min(game.limit, pen.output + moves[event.key][1]));
+      if (pen.down) drawBetween(before, pen);
+    }
+    pen.visible = true;
+    showGraph();
+  });
+  graph.addEventListener('blur', () => {
+    pen.visible = false;
+    pen.down = false;
+    showGraph();
+  });
 
+  find('#clear').addEventListener('click', () => {
+    drawing = blank();
+    marks = blank();
+    message('');
+    showGraph();
+  });
+
+  /* Checking a go */
+
+  function showResult(result) {
+    curve = result.curve;
+    asymptotes = result.asymptotes;
+
+    find('#result-heading').textContent = result.solved
+      ? `Cracked it in ${goesText(goes)}`
+      : `Out of goes. Your best was ${result.accuracy}%`;
+    find('#result-stars').textContent = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
+    find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
+    find('#result-family').textContent = result.familyName;
+    find('#result-formula').textContent = result.formula;
+
+    find('.tools').hidden = true;
+    find('.check-row').hidden = true;
+    find('#result').hidden = false;
+    graph.classList.add('finished');
+  }
+
+  find('#check').addEventListener('click', async () => {
     try {
-      const result = await send(`/api/machines/${machine.id}/answer`, {
-        drawing,
-        familyId: Number(chosen.value),
-        testsUsed: tests.length
-      });
-      truth = result.truth;
+      const result = await send(`/api/machines/${game.id}/go`, { drawing, go: goes + 1 });
+      goes += 1;
+      attempts.push([...drawing]);
+      marks = result.marks;
+      missed = result.missed;
+      exits = result.exits;
 
-      find('#result-score').textContent = `${result.score} points`;
-      find('#result-stars').textContent = '★'.repeat(result.stars) + '☆'.repeat(3 - result.stars);
-      find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
-      find('#result-accuracy').textContent = `${result.accuracy}%`;
-      find('#result-type').textContent = result.typeCorrect
-        ? `${result.familyName}. You got it, +10.`
-        : `${result.familyName}. Not what you picked.`;
-      find('#result-tests').textContent = `${machine.maxTests - tests.length}, +1 each`;
-      find('#result-formula').textContent = result.formula;
-
-      // Drawing is finished, so dragging now only moves the graph.
-      find('input[name="mode"][value="move"]').checked = true;
-      find('.switch').hidden = true;
-      find('#play').hidden = true;
-      find('#result').hidden = false;
-      setView(null);
-      find('#result-heading').scrollIntoView({ block: 'nearest' });
+      showGoes();
+      if (result.finished) {
+        showResult(result);
+        message('');
+      } else {
+        message(`${result.accuracy}% there. Fix the red and amber parts, then check again.`);
+      }
+      showGraph();
     } catch (error) {
       message(error.message);
     }
   });
-
-  /* Graph controls */
-
-  addGraphControls(graph, { getView: currentView, setView, getMode: mode, onDraw: draw });
-  document.querySelectorAll('input[name="mode"]').forEach((radio) => {
-    radio.addEventListener('change', showGraph);
-  });
-  find('#zoom-in').addEventListener('click', () => setView(zoomView(currentView(), 0.8)));
-  find('#zoom-out').addEventListener('click', () => setView(zoomView(currentView(), 1.25)));
-  find('#zoom-fit').addEventListener('click', () => setView(null));
 
   // The graph is drawn at its real size, so it needs redrawing when the window changes.
   window.addEventListener('resize', showGraph);
 
-  const date = new Date(`${machine.date}T00:00`);
+  const date = new Date(`${game.date}T00:00`);
   const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-  find('#machine-details').textContent = `No. ${machine.id} · ${dateText} · difficulty ${machine.difficulty} of 3`;
-  find('#input-help').textContent = `Whole numbers from ${machine.minInput} to ${machine.maxInput}.`;
-  input.min = machine.minInput;
-  input.max = machine.maxInput;
+  find('#machine-details').textContent = `No. ${game.id} · ${dateText} · difficulty ${game.difficulty} of 3`;
 
-  showEnergy();
-  showLog();
-  showProgress();
+  showGoes();
   showGraph();
 }
 
