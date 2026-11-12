@@ -53,6 +53,8 @@ async function start() {
   // The first and last column the current stroke has touched.
   let strokeSpan = null;
   let strokesDone = 0;
+  // Every pointer position of the stroke being drawn, so the line can follow the pen exactly.
+  let live = [];
 
   // The last go once it has been marked: { drawing, levels }. The go before it is the ghost.
   let shown = null;
@@ -71,8 +73,31 @@ async function start() {
 
   function showGraph() {
     drawGraph(graph, {
-      drawing, shown, ghost, percent, missed, exits, curve, asymptotes, pen: pen.visible && !curve ? pen : null
+      drawing, live, shown, ghost, percent, missed, exits, curve, asymptotes, pen: pen.visible && !curve ? pen : null
     }, game.limit);
+  }
+
+  // Redraws on the next screen refresh. Pointer events arrive faster than the screen updates,
+  // so this stops the graph being rebuilt more often than anyone could see.
+  let drawQueued = false;
+  function showGraphSoon() {
+    if (drawQueued) return;
+    drawQueued = true;
+    requestAnimationFrame(() => {
+      drawQueued = false;
+      showGraph();
+    });
+  }
+
+  // Shows the score over the graph, then takes it away again after a moment.
+  let percentTimer = null;
+  function flashPercent(value) {
+    percent = value;
+    clearTimeout(percentTimer);
+    percentTimer = setTimeout(() => {
+      percent = null;
+      showGraph();
+    }, 1800);
   }
 
   function showGoes() {
@@ -95,8 +120,11 @@ async function start() {
       percent = null;
       missed = [];
     }
+    clearTimeout(percentTimer);
+    percent = null;
     beforeStroke = [...drawing];
     strokeSpan = null;
+    live = [];
     message('');
     return true;
   }
@@ -119,11 +147,13 @@ async function start() {
         ? { first: Math.min(strokeSpan.first, first), last: Math.max(strokeSpan.last, last) }
         : { first, last };
     }
-    showGraph();
+    live.push({ column: to.column, output: to.output });
+    showGraphSoon();
   }
 
   // Called when the pen is lifted. Once enough strokes are down, the go is sent to be marked.
   async function endStroke() {
+    live = [];
     const length = strokeSpan ? strokeSpan.last - strokeSpan.first : 0;
     if (length < game.shortestStroke) {
       drawing = beforeStroke;
@@ -133,6 +163,7 @@ async function start() {
 
     strokesDone += 1;
     if (strokesDone < game.strokes) {
+      showGraph();
       return message(`Piece ${strokesDone} of ${game.strokes} drawn. Now draw the next piece.`);
     }
 
@@ -141,7 +172,7 @@ async function start() {
       const result = await send(`/api/machines/${game.id}/go`, { drawing, go: goes + 1 });
       goes += 1;
       shown = { drawing, levels: result.levels };
-      percent = result.accuracy;
+      flashPercent(result.accuracy);
       missed = result.missed;
       exits = result.exits;
       showGoes();
@@ -165,6 +196,7 @@ async function start() {
     asymptotes = result.asymptotes;
 
     // The big score is cleared so it does not cover the real curve.
+    clearTimeout(percentTimer);
     percent = null;
     find('#result-heading').textContent = result.solved
       ? `Cracked it in ${goesText(goes)} with ${result.accuracy}%`

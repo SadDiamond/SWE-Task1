@@ -122,13 +122,13 @@ function drawGrid(svg, scale, limit) {
 //   shown: the last go once marked { drawing, levels }, ghost: the go before that,
 //   percent: the score to show over the graph, missed: columns the last go left empty by mistake,
 //   exits: where the curve leaves the graph, curve and asymptotes: the answer, once known,
+//   live: the pointer positions of the stroke being drawn right now,
 //   pen: the keyboard pen { column, output, down }, or null.
 function drawGraph(svg, picture, limit) {
   const columns = picture.drawing.length;
   const scale = scaleFor(svg, limit, columns);
-  const summary = svg.querySelector('title');
 
-  svg.replaceChildren(summary);
+  svg.replaceChildren();
   svg.setAttribute('viewBox', `0 0 ${scale.size} ${scale.size}`);
   drawGrid(svg, scale, limit);
 
@@ -168,6 +168,13 @@ function drawGraph(svg, picture, limit) {
     svg.append(svgElement('path', { class: 'stroke', d: line.path }));
   });
 
+  // The stroke being drawn right now, straight from the pointer so it appears without any delay.
+  if (picture.live.length > 0) {
+    const points = picture.live
+      .map((spot) => `${scale.xFor(scale.inputFor(spot.column)).toFixed(1)} ${scale.yFor(spot.output).toFixed(1)}`);
+    svg.append(svgElement('path', { class: 'stroke', d: `M${points[0]} L${points.join(' L')}` }));
+  }
+
   // The real curve goes on top of the drawing so it can always be seen.
   if (picture.curve) {
     linesFrom(picture.curve, scale).forEach((line) => {
@@ -202,7 +209,8 @@ function drawGraph(svg, picture, limit) {
     }, `${picture.percent}%`));
   }
 
-  summary.textContent = `Graph from −${limit} to ${limit}.`
-    + (picture.percent !== null ? ` Your last go scored ${picture.percent}%.` : ' Nothing checked yet.')
-    + (picture.curve ? ' The real curve is shown.' : '');
+  // A description for screen readers. It is a label and not a <title>, so it does not pop up on hover.
+  svg.setAttribute('aria-label', `Graph from −${limit} to ${limit}.`
+    + (picture.percent !== null ? ` Your last go scored ${picture.percent}%.` : '')
+    + (picture.curve ? ' The real curve is shown.' : ''));
 }

@@ -320,6 +320,7 @@ button.primary:hover:not(:disabled) {
 
 /* The score across the middle of the graph. The white edge keeps it readable over the grid. */
 .percent {
+  animation: flash 1.8s ease-in forwards;
   fill: var(--ink);
   font-family: var(--hand);
   font-weight: 700;
@@ -484,4 +485,16 @@ summary {
   font-family: var(--hand);
   font-weight: 700;
   cursor: pointer;
+}
+
+/* The score appears at full strength, holds, then fades away. */
+@keyframes flash {
+  0%,
+  45% {
+    opacity: 0.85;
+  }
+
+  100% {
+    opacity: 0;
+  }
 }
