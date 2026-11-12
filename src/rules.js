@@ -416,7 +416,7 @@ async function fillHistory() {
 }
 
 module.exports = {
-  COLUMNS, LIMIT, MAX_GOES, SHORTEST_STROKE, STEPS_PER_UNIT,
+  COLUMNS, LIMIT, MAX_GOES, MOST_POINTS, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
   pieces, starsFor, todayDate, validDrawing, visibleCurve, wholeCurve

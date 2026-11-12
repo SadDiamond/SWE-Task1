@@ -46,6 +46,12 @@ const SLOT_NAMES = { 1: 'Easy', 2: 'Medium', 3: 'Hard' };
 // which keeps a drawing to a sensible size however slowly it is drawn.
 const PEN_SPACING = 0.05;
 
+// A pen position as [x, y], rounded to two decimal places.
+// More decimals than that cannot be seen and only make the drawing bigger to send.
+function rounded(position) {
+  return [Math.round(position.x * 100) / 100, Math.round(position.y * 100) / 100];
+}
+
 function starsText(stars) {
   return '★'.repeat(stars) + '☆'.repeat(3 - stars);
 }
@@ -202,7 +208,7 @@ async function start() {
     clearTimeout(percentTimer);
     percent = null;
     strokeLength = 0;
-    round.strokes.push([[position.x, position.y]]);
+    round.strokes.push([rounded(position)]);
     message('');
     showGraph();
     return true;
@@ -214,8 +220,11 @@ async function start() {
     const [lastX, lastY] = stroke[stroke.length - 1];
     const moved = Math.hypot(position.x - lastX, position.y - lastY);
     if (moved < PEN_SPACING) return;
+    // The server refuses drawings with too many positions, so the pen stops adding them at the limit.
+    const points = round.strokes.reduce((total, item) => total + item.length, 0);
+    if (points >= game.mostPoints) return;
 
-    stroke.push([position.x, position.y]);
+    stroke.push(rounded(position));
     strokeLength += moved;
     showGraphSoon();
   }
