@@ -1,6 +1,14 @@
 /* Design tokens: every colour, font and space used on the site is named here once.
    The graph itself is clean. Everything around it looks drawn by hand. */
 
+/* A handwriting font that comes with the site, so it looks the same on every device.
+   Patrick Hand, SIL Open Font License. The licence is in public/fonts. */
+@font-face {
+  font-family: "Patrick Hand";
+  src: url("/fonts/patrick-hand.woff2") format("woff2");
+  font-display: swap;
+}
+
 :root {
   --page: #fbfaf6;
   --ink: #1f2328;
@@ -17,8 +25,7 @@
   --level-4: #c22f27;
 
   --text: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  /* A handwriting font that is already on most computers, so nothing has to be downloaded. */
-  --hand: "Chalkboard SE", "Comic Sans MS", "Comic Neue", "Segoe Print", cursive;
+  --hand: "Patrick Hand", "Bradley Hand", "Segoe Print", cursive;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* An uneven corner radius makes a box look drawn with a pen instead of a ruler. */
@@ -55,8 +62,48 @@ body {
 .top,
 main,
 footer {
-  width: min(100% - 2rem, 38rem);
+  width: min(100% - 2rem, 76rem);
   margin-inline: auto;
+}
+
+/* On a phone the page is one column: the lead, then the graph, then the rest.
+   On a wide screen the graph fills the left and everything else sits in a column beside it. */
+.layout {
+  display: grid;
+  gap: 0 2.5rem;
+  grid-template-areas:
+    "lead"
+    "board"
+    "rest";
+}
+
+.lead {
+  grid-area: lead;
+}
+
+.board {
+  grid-area: board;
+}
+
+.rest {
+  grid-area: rest;
+}
+
+@media (min-width: 60rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 24rem;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "board lead"
+      "board rest";
+    align-items: start;
+  }
+
+  /* The graph is as big as fits on screen without scrolling. */
+  .graph {
+    max-width: calc(100vh - 8rem);
+    margin-inline: auto;
+  }
 }
 
 .top {
@@ -72,7 +119,7 @@ footer {
 
 .brand {
   color: var(--ink);
-  font: 700 1.375rem var(--hand);
+  font: 400 1.75rem var(--hand);
   text-decoration: none;
 }
 
@@ -89,7 +136,7 @@ nav a {
   display: block;
   padding: 0.375rem 0;
   color: var(--ink);
-  font-family: var(--hand);
+  font: 400 1.1875rem var(--hand);
   text-decoration: none;
 }
 
@@ -112,17 +159,18 @@ footer {
 h1,
 h2 {
   font-family: var(--hand);
-  line-height: 1.2;
+  font-weight: 400;
+  line-height: 1.15;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(1.75rem, 6vw, 2.5rem);
+  font-size: clamp(2.25rem, 6vw, 3.25rem);
 }
 
 h2 {
   margin: 0 0 0.5rem;
-  font-size: 1.25rem;
+  font-size: 1.625rem;
 }
 
 p {
@@ -172,9 +220,8 @@ p {
 }
 
 .stroke-info {
-  margin: 1rem 0 0.5rem;
-  font-family: var(--hand);
-  font-weight: 700;
+  margin: 1rem 0 0.75rem;
+  font: 400 1.1875rem var(--hand);
 }
 
 fieldset {
@@ -198,7 +245,7 @@ button {
   border-radius: var(--wobble);
   background: #ffffff;
   color: var(--ink);
-  font: 700 1rem var(--hand);
+  font: 400 1.1875rem var(--hand);
   cursor: pointer;
 }
 
@@ -227,7 +274,7 @@ button.primary {
   background: var(--fresh);
   border-color: var(--ink);
   color: #ffffff;
-  font-size: 1.125rem;
+  font-size: 1.3125rem;
 }
 
 button.primary:hover:not(:disabled) {
@@ -342,7 +389,7 @@ button.primary:hover:not(:disabled) {
 
 /* The go before last, left behind to trace over. */
 .faded {
-  opacity: 0.28;
+  opacity: 0.25;
 }
 
 .truth {
@@ -355,7 +402,6 @@ button.primary:hover:not(:disabled) {
   animation: flash 1.8s ease-in forwards;
   fill: var(--ink);
   font-family: var(--hand);
-  font-weight: 700;
   opacity: 0.85;
   paint-order: stroke;
   stroke: #ffffff;
@@ -416,7 +462,7 @@ button.primary:hover:not(:disabled) {
 
 .goes-text {
   margin: 0;
-  font-family: var(--hand);
+  font: 400 1.1875rem var(--hand);
 }
 
 .status {
@@ -447,13 +493,36 @@ button.primary:hover:not(:disabled) {
   line-height: 1;
 }
 
-.formula {
+/* The formula with a crayon loop scribbled round it */
+
+.circled {
+  position: relative;
   display: inline-block;
-  padding: 0.25rem 0.875rem;
-  border: 2px solid var(--wrong);
-  border-radius: 50%;
+  margin: 0.25rem 0 1rem;
+  padding: 1.25rem 2.5rem;
+}
+
+.formula {
+  position: relative;
   font: 700 1.125rem var(--mono);
-  transform: rotate(-1.5deg);
+}
+
+.crayon {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.crayon path {
+  fill: none;
+  stroke: var(--wrong);
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.8;
+  /* Keeps the crayon the same thickness however far the loop is stretched. */
+  vector-effect: non-scaling-stroke;
 }
 
 /* Key */
@@ -519,8 +588,7 @@ button.primary:hover:not(:disabled) {
 
 summary {
   padding: 0.375rem 0;
-  font-family: var(--hand);
-  font-weight: 700;
+  font: 400 1.1875rem var(--hand);
   cursor: pointer;
 }
 

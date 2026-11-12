@@ -19,65 +19,83 @@
       </nav>
     </header>
 
-    <main id="main">
-      <h1>Today's curves</h1>
-      <p id="machine-details" class="details">Loading…</p>
-      <p class="intro">
-        Three curves are hiding today: one easy, one medium, one hard. Draw where you think
-        a curve goes. The moment you lift your pen, your line is marked: green where you
-        are on it, red where you are way off.
-      </p>
+    <main id="main" class="layout">
+      <div class="lead">
+        <h1>Today's curves</h1>
+        <p id="machine-details" class="details">Loading…</p>
+        <p class="intro">
+          Three curves are hiding today: one easy, one medium, one hard. Draw where you think
+          a curve goes. The moment you lift your pen, your line is marked: green where you
+          are on it, red where you are way off.
+        </p>
 
-      <div id="tabs" class="tabs" role="group" aria-label="Choose a curve"></div>
-
-      <section aria-labelledby="graph-heading">
-        <h2 id="graph-heading" class="visually-hidden">Graph</h2>
+        <div id="tabs" class="tabs" role="group" aria-label="Choose a curve"></div>
         <p id="stroke-info" class="stroke-info"></p>
+      </div>
 
+      <section class="board" aria-labelledby="graph-heading">
+        <h2 id="graph-heading" class="visually-hidden">Graph</h2>
         <svg id="graph" class="graph" role="img" tabindex="0"
              aria-label="Graph from −10 to 10. Nothing checked yet." aria-describedby="keyboard-help"></svg>
+      </section>
 
+      <div class="rest">
         <div class="under-graph">
           <div id="goes" class="goes" aria-hidden="true"></div>
           <p id="goes-text" class="goes-text"></p>
         </div>
 
         <p id="form-status" class="status" role="status" aria-live="polite"></p>
-      </section>
 
-      <section id="result" class="result" aria-labelledby="result-heading" hidden>
-        <h2 id="result-heading"></h2>
-        <p id="result-stars" class="stars"></p>
-        <p>Type of curve: <strong id="result-family"></strong></p>
-        <p id="result-formula" class="formula"></p>
-        <p class="help">The real curve is the black line. Dashed lines are asymptotes: lines the curve gets close to but never touches.</p>
-        <button type="button" id="next-curve" class="primary">Next curve</button>
-        <p id="day-done" hidden>That is all three for today. Come back tomorrow for new ones.</p>
-      </section>
-
-      <section class="key" aria-labelledby="key-heading">
-        <h2 id="key-heading">Reading your line</h2>
-        <div class="scale" aria-hidden="true">
-          <span class="l0"></span><span class="l1"></span><span class="l2"></span><span class="l3"></span><span class="l4"></span>
-        </div>
-        <p class="scale-labels"><span>Spot on</span><span>Way off</span></p>
-        <ul>
-          <li>The line is thick and green where you are on the curve, and gets thinner and redder the further away you are.</li>
-          <li>Red also means there is no curve in that spot at all.</li>
-          <li><strong>▲ An arrow on the top or bottom edge</strong>: the curve leaves the graph here.</li>
-          <li><strong>A grey bar along the bottom</strong>: the curve is somewhere above, and you drew nothing.</li>
-          <li>Your last go stays on the graph, faded, so you can trace the good parts.</li>
-          <li>You can draw any shape you like, including loops and straight up and down.</li>
-        </ul>
-
-        <details>
-          <summary>Drawing with a keyboard</summary>
-          <p id="keyboard-help">
-            Select the graph with Tab. The arrow keys move the pen. Press Space to put the pen
-            down, move to draw, and press Space again to lift it, which finishes the stroke.
+        <section id="result" class="result" aria-labelledby="result-heading" hidden>
+          <h2 id="result-heading"></h2>
+          <p id="result-stars" class="stars"></p>
+          <p>Type of curve: <strong id="result-family"></strong></p>
+          <p class="circled">
+            <span id="result-formula" class="formula"></span>
+            <!-- A loop scribbled round the formula in crayon. The filter roughens its edges. -->
+            <svg class="crayon" viewBox="0 0 300 80" preserveAspectRatio="none" aria-hidden="true">
+              <filter id="crayon">
+                <feTurbulence type="fractalNoise" baseFrequency="0.6" numOctaves="3" seed="7" result="grain"/>
+                <feDisplacementMap in="SourceGraphic" in2="grain" scale="5"/>
+              </filter>
+              <g filter="url(#crayon)">
+                <path d="M34 22 C90 2 232 4 276 26 C304 44 262 72 150 74 C52 76 2 58 14 36 C22 20 60 10 118 8"/>
+                <path d="M30 28 C84 8 226 8 270 30 C294 46 254 68 152 70 C60 72 12 56 20 40"/>
+              </g>
+            </svg>
           </p>
-        </details>
-      </section>
+          <p class="help">
+            The real curve is the black line, with your last go faded behind it. Dashed lines are
+            asymptotes: lines the curve gets close to but never touches.
+          </p>
+          <button type="button" id="next-curve" class="primary">Next curve</button>
+          <p id="day-done" hidden>That is all three for today. Come back tomorrow for new ones.</p>
+        </section>
+
+        <section class="key" aria-labelledby="key-heading">
+          <h2 id="key-heading">Reading your line</h2>
+          <div class="scale" aria-hidden="true">
+            <span class="l0"></span><span class="l1"></span><span class="l2"></span><span class="l3"></span><span class="l4"></span>
+          </div>
+          <p class="scale-labels"><span>Spot on</span><span>Way off</span></p>
+          <ul>
+            <li>The line is thick and green where you are on the curve, and gets thinner and redder the further away you are.</li>
+            <li><strong>▲ An arrow on the top or bottom edge</strong>: the curve leaves the graph here.</li>
+            <li><strong>A grey bar along the bottom</strong>: the curve is somewhere above, and you were nowhere near.</li>
+            <li>Your last go stays on the graph, faded, so you can trace the good parts.</li>
+            <li>You can draw any shape you like, including loops and straight up and down.</li>
+          </ul>
+
+          <details>
+            <summary>Drawing with a keyboard</summary>
+            <p id="keyboard-help">
+              Select the graph with Tab. The arrow keys move the pen. Press Space to put the pen
+              down, move to draw, and press Space again to lift it, which finishes the stroke.
+            </p>
+          </details>
+        </section>
+      </div>
     </main>
 
     <footer>

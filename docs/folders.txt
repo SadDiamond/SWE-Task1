@@ -2,6 +2,7 @@ data
 database
 docs
 public
+public/fonts
 public/icons
 public/images
 scripts
