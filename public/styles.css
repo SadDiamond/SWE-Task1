@@ -1,30 +1,21 @@
 /* Design tokens: every colour, font and space used on the site is named here once.
-   The look is a piece of lab equipment: dark casing, a glowing screen, amber controls. */
+   The look is a page of graph paper: ink for facts, a blue pen for the player, a red pen for marking. */
 
 :root {
-  color-scheme: dark;
-
-  --bench: #0e1316;
-  --casing: #182024;
-  --casing-edge: #2c383e;
-  --well: #0a0f11;
-  --screen: #06100c;
-  --grid: #14302a;
-  --grid-strong: #2f6a55;
-
-  --ink: #e9f0ea;
-  --muted: #94a59d;
-  --trace: #6dffb0;
-  --amber: #ffb627;
-  --amber-dark: #b87f0c;
-  --alert: #ff8b78;
+  --page: #f7f5ee;
+  --paper: #fffefa;
+  --ink: #22262b;
+  --muted: #5b6370;
+  --rule: #c9d3dc;
+  --grid: #dbe4ec;
+  --blue-pen: #1b4fc4;
+  --red-pen: #c22f27;
+  --gap-shade: #fff3c9;
 
   --text: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 
-  --gap: 1rem;
-  --radius: 10px;
-  --glow: 0 0 10px rgba(109, 255, 176, 0.55);
+  --space: 1rem;
 }
 
 * {
@@ -33,10 +24,23 @@
 
 body {
   margin: 0;
-  /* A faint dot grid, like a perforated workbench. */
-  background: var(--bench) radial-gradient(#1c262b 1px, transparent 1px) 0 0 / 22px 22px;
+  background: var(--page);
   color: var(--ink);
-  font: 1rem/1.5 var(--text);
+  font: 1rem/1.55 var(--text);
+}
+
+/* Makes the hidden attribute win over display rules set further down. */
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Layout */
@@ -44,39 +48,25 @@ body {
 .top,
 main,
 footer {
-  width: min(100% - 2rem, 64rem);
+  width: min(100% - 2rem, 50rem);
   margin-inline: auto;
 }
 
 .top {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.25rem 1.5rem;
-  padding: 1.125rem 0 0.875rem;
-  border-bottom: 1px solid var(--casing-edge);
+  padding: 1.25rem 0 0.75rem;
+  border-bottom: 2px solid var(--ink);
 }
 
 .brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.625rem;
   color: var(--ink);
-  font: 700 1.125rem var(--mono);
-  letter-spacing: 0.14em;
+  font-size: 1.125rem;
+  font-weight: 700;
   text-decoration: none;
-  text-transform: uppercase;
-}
-
-/* The power light next to the name. */
-.brand::before {
-  content: "";
-  width: 0.625rem;
-  height: 0.625rem;
-  border-radius: 50%;
-  background: var(--trace);
-  box-shadow: var(--glow);
 }
 
 nav ul {
@@ -90,241 +80,187 @@ nav ul {
 
 nav a {
   display: block;
-  padding: 0.5rem 0;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.9375rem;
+  padding: 0.375rem 0;
+  color: var(--ink);
   text-decoration: none;
 }
 
-nav a:hover {
-  color: var(--ink);
-}
-
+nav a:hover,
 nav a[aria-current="page"] {
-  color: var(--amber);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
 }
 
 main {
-  padding: 2rem 0 3rem;
+  padding: 1.75rem 0 3rem;
 }
 
 footer {
   padding: 1rem 0 2rem;
-  border-top: 1px solid var(--casing-edge);
+  border-top: 1px solid var(--rule);
   color: var(--muted);
   font-size: 0.875rem;
-}
-
-.page-title {
-  margin-bottom: 1.5rem;
 }
 
 h1 {
   margin: 0;
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
+  font-size: clamp(1.625rem, 5vw, 2.25rem);
+  line-height: 1.15;
 }
 
 #machine-details {
-  margin: 0.5rem 0 0;
+  margin: 0.25rem 0 1.25rem;
   color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.9375rem;
 }
 
-/* The bench. On a phone the panels stack: machine, graph, log.
-   On a wide screen the machine and log sit on the left with the graph beside them. */
-
-.bench {
-  display: grid;
-  gap: var(--gap);
-  grid-template-areas:
-    "machine"
-    "screen"
-    "log";
+h2 {
+  margin: 0 0 0.375rem;
+  font-size: 1.125rem;
 }
 
-.machine {
-  grid-area: machine;
-}
-
-.screen {
-  grid-area: screen;
-}
-
-.log {
-  grid-area: log;
-}
-
-@media (min-width: 52rem) {
-  .bench {
-    grid-template-columns: 1fr 1.15fr;
-    grid-template-areas:
-      "machine screen"
-      "log screen";
-    align-items: start;
-  }
-}
-
-/* A panel is one piece of equipment: raised casing with a labelled front. */
-.panel {
-  padding: 1rem 1.125rem 1.25rem;
-  border: 1px solid var(--casing-edge);
-  border-radius: var(--radius);
-  background: linear-gradient(#1c262b, var(--casing));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 24px rgba(0, 0, 0, 0.35);
-}
-
-.panel h2 {
-  margin: 0 0 1rem;
-  color: var(--muted);
-  font: 700 0.75rem var(--mono);
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+p {
+  margin: 0 0 0.75rem;
 }
 
 .help {
-  margin: 0.625rem 0 0;
+  margin: 0.5rem 0 0;
   color: var(--muted);
   font-size: 0.875rem;
 }
 
-.status {
-  min-height: 1.5rem;
-  margin: 0.75rem 0 0;
-  color: var(--alert);
-  font-weight: 600;
-}
+/* The graph */
 
-/* The machine: input, the box itself, output */
-
-.flow {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto 1fr;
-  align-items: end;
+.graph-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
+  margin-bottom: 0.5rem;
 }
 
-.port label,
-.port .label {
-  display: block;
-  margin-bottom: 0.375rem;
-  color: var(--muted);
-  font: 700 0.6875rem var(--mono);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-/* Both number displays share one shape, sunk into the casing. */
-.readout {
+.graph {
   display: block;
   width: 100%;
-  height: 4rem;
-  padding: 0 0.5rem;
-  border: 1px solid var(--casing-edge);
-  border-radius: 6px;
-  background: var(--well);
-  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.6);
-  font: 700 1.875rem/4rem var(--mono);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
+  /* Wide on a big screen, closer to square on a phone so there is room to draw. */
+  aspect-ratio: 16 / 10;
+  cursor: grab;
+  /* Sideways drags move the graph; up-and-down swipes still scroll the page on a phone. */
+  touch-action: pan-y;
+  user-select: none;
 }
 
-input.readout {
-  color: var(--amber);
-  caret-color: var(--amber);
+/* Clicking the graph with a mouse should not draw a focus box round it. Keyboard focus still does. */
+.graph:focus:not(:focus-visible) {
+  outline: none;
 }
 
-/* Hides the browser's small up and down arrows so the number sits in the middle. */
-input.readout {
-  appearance: textfield;
+.graph.drawing-mode {
+  cursor: crosshair;
+  touch-action: none;
 }
 
-input.readout::-webkit-inner-spin-button,
-input.readout::-webkit-outer-spin-button {
-  appearance: none;
-  margin: 0;
+.paper {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
 }
 
-input.readout::selection {
-  background: var(--amber);
-  color: #1a1203;
+.grid {
+  stroke: var(--grid);
+  stroke-width: 1;
 }
 
-output.readout {
-  color: var(--trace);
-  text-shadow: var(--glow);
+.axis {
+  stroke: var(--ink);
+  stroke-width: 1.5;
 }
 
-.arrow {
-  padding-bottom: 1.25rem;
-  color: var(--muted);
-  font: 700 1.25rem var(--mono);
+.edge {
+  stroke: var(--rule);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
 }
 
-.box {
-  display: grid;
-  place-items: center;
-  width: 4rem;
-  height: 4rem;
-  border: 1px solid #3b4a51;
-  border-radius: 8px;
-  background: linear-gradient(145deg, #2a363c, #10171a);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 10px rgba(0, 0, 0, 0.5);
-  color: var(--amber);
-  font: 800 2rem var(--mono);
+.gap {
+  fill: var(--gap-shade);
 }
 
-/* Buttons */
+.tick {
+  fill: var(--muted);
+  font: 13px var(--mono);
+}
+
+.point {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 2;
+}
+
+.point.newest {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+
+.drawing,
+.truth {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.drawing {
+  stroke: var(--blue-pen);
+}
+
+.truth {
+  stroke: var(--red-pen);
+  stroke-dasharray: 2 6;
+}
+
+/* Controls */
+
+input,
+button {
+  font: inherit;
+}
 
 button {
   min-height: 2.75rem;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--casing-edge);
-  border-radius: 6px;
-  background: #222d32;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
   color: var(--ink);
-  font: 600 1rem var(--text);
+  font-weight: 600;
   cursor: pointer;
 }
 
 button:hover:not(:disabled) {
-  background: #2b383e;
+  background: var(--grid);
 }
 
-/* The main button looks like a key you can press down. */
 button.primary {
-  width: 100%;
-  margin-top: 1rem;
-  border: 0;
-  border-bottom: 4px solid var(--amber-dark);
-  background: var(--amber);
-  color: #1a1203;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  background: var(--ink);
+  color: var(--paper);
 }
 
 button.primary:hover:not(:disabled) {
-  background: #ffc54d;
-}
-
-button.primary:active:not(:disabled) {
-  border-bottom-width: 1px;
-  transform: translateY(3px);
+  background: #3a4048;
 }
 
 button:disabled,
 input:disabled {
-  opacity: 0.45;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 :focus-visible {
-  outline: 3px solid var(--amber);
-  outline-offset: 3px;
+  outline: 3px solid var(--blue-pen);
+  outline-offset: 2px;
 }
 
 .skip-link {
@@ -337,121 +273,140 @@ input:disabled {
   top: 1rem;
   z-index: 1;
   padding: 0.5rem 1rem;
-  background: var(--casing);
-  color: var(--ink);
+  background: var(--paper);
 }
 
-/* Tests left, shown as a row of lights that go out from the right */
+/* Draw / Move switch */
 
-.energy {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--casing-edge);
+fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
-#energy-text {
-  margin: 0 0 0.5rem;
-  color: var(--ink);
-  font: 700 0.9375rem var(--mono);
-}
-
-.cells {
+.switch {
   display: flex;
-  gap: 0.3rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
-.cell {
-  flex: 1;
-  height: 0.75rem;
-  border-radius: 2px;
-  background: #253036;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+.switch label {
+  display: flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 1rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.cell.full {
-  background: var(--trace);
-  box-shadow: var(--glow);
-}
-
-/* Graph: the screen of the instrument */
-
-/* The zoom buttons sit in the top right corner of the panel, level with its label. */
-.screen {
-  position: relative;
-}
-
-.screen h2 {
-  margin-bottom: 1.5rem;
-}
-
-.graph-tools {
+.switch input {
   position: absolute;
-  top: 0.625rem;
-  right: 1.125rem;
+  opacity: 0;
+}
+
+.switch label:has(input:checked) {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.switch label:has(input:focus-visible) {
+  outline: 3px solid var(--blue-pen);
+  outline-offset: -3px;
+}
+
+.zoom {
   display: flex;
   gap: 0.375rem;
 }
 
-.graph-tools button {
-  min-width: 2.75rem;
-  min-height: 2.25rem;
+.zoom button {
+  min-width: 2.5rem;
+  min-height: 2.5rem;
   padding: 0 0.75rem;
+}
+
+/* The three steps */
+
+.steps {
+  margin-top: 1.5rem;
+}
+
+.step {
+  padding: 1.25rem 0;
+  border-top: 1px solid var(--rule);
+}
+
+.number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-right: 0.375rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  font-size: 0.875rem;
+}
+
+.test-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.test-form label {
+  font-weight: 600;
+}
+
+.test-form input {
+  width: 6rem;
+  min-height: 2.75rem;
+  padding: 0 0.625rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--mono);
+  font-size: 1.125rem;
 }
 
-.graph {
-  display: block;
-  width: 100%;
-  height: auto;
-  border: 1px solid var(--casing-edge);
-  border-radius: 8px;
-  background: var(--well);
-  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.7);
-  cursor: grab;
-  /* Sideways drags move the graph; up-and-down swipes still scroll the page on a phone. */
-  touch-action: pan-y;
-  user-select: none;
+.energy-text {
+  margin: 1rem 0 0.375rem;
+  font-weight: 600;
 }
 
-.graph:active {
-  cursor: grabbing;
+/* Tests left, as a row of boxes that empty from the right */
+
+.cells {
+  display: flex;
+  gap: 0.25rem;
+  max-width: 20rem;
 }
 
-.graph-screen {
-  fill: var(--screen);
+.cell {
+  flex: 1;
+  height: 0.625rem;
+  border: 1.5px solid var(--ink);
 }
 
-.grid {
-  stroke: var(--grid);
-  stroke-width: 1;
+.cell.full {
+  background: var(--ink);
 }
 
-.axis {
-  stroke: var(--grid-strong);
-  stroke-width: 1.5;
+.log {
+  margin-top: 1rem;
 }
 
-.tick {
-  fill: var(--muted);
-  font: 13px var(--mono);
+.log summary {
+  padding: 0.375rem 0;
+  font-weight: 600;
+  cursor: pointer;
 }
-
-.point {
-  fill: var(--trace);
-  filter: drop-shadow(0 0 4px rgba(109, 255, 176, 0.9));
-}
-
-.point.newest {
-  fill: var(--screen);
-  stroke: var(--amber);
-  stroke-width: 3;
-  filter: drop-shadow(0 0 5px rgba(255, 182, 39, 0.9));
-}
-
-/* Test log */
 
 table {
   width: 100%;
+  max-width: 20rem;
   border-collapse: collapse;
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
@@ -459,67 +414,129 @@ table {
 
 th,
 td {
-  padding: 0.4375rem 0.75rem;
-  border-bottom: 1px solid #232e33;
+  padding: 0.3125rem 0.75rem;
+  border-bottom: 1px solid var(--grid);
   text-align: right;
 }
 
 thead th {
-  border-bottom: 1px solid var(--casing-edge);
-  color: var(--muted);
-  font-size: 0.6875rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  border-bottom: 1.5px solid var(--ink);
+  font-family: var(--text);
+  font-size: 0.875rem;
 }
 
 tbody th {
-  color: var(--amber);
   font-weight: 400;
 }
 
-tbody td {
-  color: var(--trace);
-}
-
-tbody td:last-child {
+td:last-child {
   color: var(--muted);
 }
 
 tr.newest th,
 tr.newest td {
-  background: rgba(109, 255, 176, 0.08);
   font-weight: 700;
 }
 
-/* Small movements. Switched off for people who ask their device for less motion. */
-
-@media (prefers-reduced-motion: no-preference) {
-  .box.working {
-    animation: working 0.45s ease-out;
-  }
-
-  .point.newest {
-    animation: appear 0.3s ease-out;
-    transform-box: fill-box;
-    transform-origin: center;
-  }
-
-  button.primary {
-    transition: transform 0.05s, border-bottom-width 0.05s;
-  }
+.progress {
+  font-weight: 600;
 }
 
-@keyframes working {
-  30% {
-    border-color: var(--amber);
-    box-shadow: 0 0 18px rgba(255, 182, 39, 0.7);
-    transform: scale(1.06);
-  }
+/* Choosing the type */
+
+.families legend {
+  margin-bottom: 0.625rem;
 }
 
-@keyframes appear {
-  from {
-    transform: scale(2.5);
-    opacity: 0;
+.families label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 0.625rem;
+  padding: 0.75rem;
+  border: 1.5px solid var(--rule);
+  border-radius: 3px;
+  background: var(--paper);
+  cursor: pointer;
+}
+
+.families label + label {
+  margin-top: 0.5rem;
+}
+
+.families label:has(input:checked) {
+  border-color: var(--ink);
+}
+
+.families input {
+  grid-row: span 2;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.2rem 0 0;
+  accent-color: var(--ink);
+}
+
+.families span {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.submit {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--rule);
+}
+
+.status {
+  min-height: 1.5rem;
+  margin: 0.75rem 0 0;
+  color: var(--red-pen);
+  font-weight: 600;
+}
+
+/* Result */
+
+.result {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  background: var(--paper);
+}
+
+.score {
+  margin: 0.25rem 0 1rem;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stars {
+  margin-left: 0.5rem;
+  color: var(--red-pen);
+  letter-spacing: 0.1em;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.375rem 1.5rem;
+  margin: 0;
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.formula {
+  font-family: var(--mono);
+}
+
+@media (max-width: 36rem) {
+  .graph {
+    aspect-ratio: 1 / 1;
   }
 }
