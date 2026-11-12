@@ -347,7 +347,7 @@ button.primary:hover:not(:disabled) {
 
 .truth {
   stroke: var(--ink);
-  stroke-width: 3;
+  stroke-width: 3.5;
 }
 
 /* The score across the middle of the graph. The white edge keeps it readable over the grid. */
@@ -366,8 +366,9 @@ button.primary:hover:not(:disabled) {
 
 .asymptote {
   stroke: var(--muted);
-  stroke-width: 1.5;
-  stroke-dasharray: 8 6;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 9 9;
 }
 
 .exit {

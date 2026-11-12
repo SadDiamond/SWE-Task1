@@ -148,7 +148,26 @@ function drawGraph(svg, picture, limit) {
     }));
   });
 
+  if (picture.shown) {
+    drawMarked(svg, picture.shown.strokes, picture.shown.levels, scale);
+  }
+  picture.strokes.forEach((stroke) => {
+    svg.append(svgElement('path', { class: 'stroke', d: strokePath(stroke, scale) }));
+  });
+
+  // The answer goes on top of the drawing so it can always be seen. It is drawn inside a group
+  // with a "wobble" filter, which nudges every part of each line by a small uneven amount so the
+  // curve and its asymptotes look drawn by hand instead of plotted by a computer.
   if (picture.curve) {
+    const filter = svgElement('filter', {
+      id: 'wobble', filterUnits: 'userSpaceOnUse', x: 0, y: 0, width: scale.size, height: scale.size
+    });
+    filter.append(
+      svgElement('feTurbulence', { type: 'fractalNoise', baseFrequency: 0.022, numOctaves: 2, seed: 4, result: 'noise' }),
+      svgElement('feDisplacementMap', { in: 'SourceGraphic', in2: 'noise', scale: 11, xChannelSelector: 'R', yChannelSelector: 'G' })
+    );
+    const answer = svgElement('g', { filter: 'url(#wobble)' });
+
     picture.asymptotes.forEach((asymptote) => {
       const line = asymptote.kind === 'vertical'
         ? { x1: scale.xFor(asymptote.input), x2: scale.xFor(asymptote.input), y1: 0, y2: scale.size }
@@ -158,22 +177,12 @@ function drawGraph(svg, picture, limit) {
           y1: scale.yFor(asymptote.slope * -limit + asymptote.start),
           y2: scale.yFor(asymptote.slope * limit + asymptote.start)
         };
-      svg.append(svgElement('line', { class: 'asymptote', ...line }));
+      answer.append(svgElement('line', { class: 'asymptote', ...line }));
     });
-  }
-
-  if (picture.shown) {
-    drawMarked(svg, picture.shown.strokes, picture.shown.levels, scale);
-  }
-  picture.strokes.forEach((stroke) => {
-    svg.append(svgElement('path', { class: 'stroke', d: strokePath(stroke, scale) }));
-  });
-
-  // The real curve goes on top of the drawing so it can always be seen.
-  if (picture.curve) {
     curvePaths(picture.curve, scale, limit).forEach((path) => {
-      svg.append(svgElement('path', { class: 'truth', d: path }));
+      answer.append(svgElement('path', { class: 'truth', d: path }));
     });
+    svg.append(filter, answer);
   }
 
   // Small arrows on the top or bottom edge where the curve leaves the graph.
