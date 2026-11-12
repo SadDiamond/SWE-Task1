@@ -50,8 +50,12 @@ async function start() {
   let drawing = blank();
   // What the drawing looked like before the current stroke, in case the stroke is too short to count.
   let beforeStroke = blank();
-  // The first and last column the current stroke has touched.
-  let strokeSpan = null;
+  // How far the pen has travelled in the current stroke, in graph units.
+  let strokeLength = 0;
+  // How many columns there are for each unit across the graph.
+  const columnsPerUnit = (game.columns - 1) / (2 * game.limit);
+  // The marked goes on screen before the current stroke began, in case it has to be undone.
+  let beforeMarks = null;
   let strokesDone = 0;
   // Every pointer position of the stroke being drawn, so the line can follow the pen exactly.
   let live = [];
@@ -114,16 +118,16 @@ async function start() {
   function startStroke() {
     if (curve || waiting) return false;
     // The first stroke of a new go pushes the last marked go into the background.
+    beforeMarks = { shown, ghost, missed };
     if (strokesDone === 0 && shown) {
       ghost = shown;
       shown = null;
-      percent = null;
       missed = [];
     }
     clearTimeout(percentTimer);
     percent = null;
     beforeStroke = [...drawing];
-    strokeSpan = null;
+    strokeLength = 0;
     live = [];
     message('');
     return true;
@@ -142,11 +146,7 @@ async function start() {
       const onGraph = Math.max(-game.limit, Math.min(game.limit, output));
       drawing[column] = Math.round(onGraph * 100) / 100;
     }
-    if (first <= last) {
-      strokeSpan = strokeSpan
-        ? { first: Math.min(strokeSpan.first, first), last: Math.max(strokeSpan.last, last) }
-        : { first, last };
-    }
+    strokeLength += Math.hypot((to.column - from.column) / columnsPerUnit, to.output - from.output);
     live.push({ column: to.column, output: to.output });
     showGraphSoon();
   }
@@ -154,9 +154,10 @@ async function start() {
   // Called when the pen is lifted. Once enough strokes are down, the go is sent to be marked.
   async function endStroke() {
     live = [];
-    const length = strokeSpan ? strokeSpan.last - strokeSpan.first : 0;
-    if (length < game.shortestStroke) {
+    // A stroke the pen barely moved in is treated as a stray tap and undone.
+    if (strokeLength < game.shortestStroke) {
       drawing = beforeStroke;
+      ({ shown, ghost, missed } = beforeMarks);
       showGraph();
       return message('That was too short to count. Draw a longer line.');
     }
