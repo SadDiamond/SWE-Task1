@@ -12,8 +12,13 @@ const SOLVED_AT = 85;
 // How far off a drawn point can be for each level of closeness.
 // Level 0 is within 0.5 (spot on), level 1 within 1, and so on. Anything further is level 4.
 const BANDS = [0.5, 1, 1.5, 2.5];
-// A stroke must cover at least this many columns to count, so a stray tap does not use up a go.
-const SHORTEST_STROKE = 8;
+// The pen must travel at least this far (in graph units) for a stroke to count,
+// so a stray tap does not use up a go.
+const SHORTEST_STROKE = 1.5;
+// A line is treated as broken where it jumps more than this between neighbouring columns.
+const BIGGEST_STEP = 6;
+// How many columns either side to look when measuring how far a point is from a line.
+const REACH = 30;
 const DAYS_OF_HISTORY = 30;
 
 const LINE = 1;
@@ -93,40 +98,87 @@ function exits(machine) {
   return found;
 }
 
-// Compares a drawing with the real curve, column by column.
-// drawing and curve are lists of numbers, with null where nothing is drawn or nothing exists.
-// levels: 0 (spot on) to 4 (way off) for each drawn column, null where nothing was drawn.
-// missed: true where the curve exists but nothing was drawn.
-function judge(drawing, curve) {
+// The curve as a list with one output for each column, including parts that are off the
+// top or bottom of the graph. Null only where the curve does not exist.
+function wholeCurve(machine) {
+  const curve = [];
+  for (let column = 0; column < COLUMNS; column += 1) {
+    curve.push(evaluate(machine, inputFor(column)));
+  }
+  return curve;
+}
+
+// The shortest distance from the point (x, y) to the straight piece of line from (x1, y1) to (x2, y2).
+function distanceToPiece(x, y, x1, y1, x2, y2) {
+  const lengthSquared = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+  // How far along the piece the closest spot is: 0 at the start, 1 at the end.
+  let along = lengthSquared === 0 ? 0 : ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / lengthSquared;
+  along = Math.max(0, Math.min(1, along));
+  return Math.hypot(x - (x1 + along * (x2 - x1)), y - (y1 + along * (y2 - y1)));
+}
+
+// The shortest distance from the point in a column to a line, measured in any direction.
+// Measuring straight up and down would be unfair on steep lines, where being a little
+// to one side looks like a huge error.
+function distanceToLine(column, output, line) {
+  const x = inputFor(column);
+  let best = Infinity;
+
+  const first = Math.max(0, column - REACH);
+  const last = Math.min(COLUMNS - 1, column + REACH);
+  for (let index = first; index <= last; index += 1) {
+    const here = line[index];
+    if (here === null) continue;
+    const next = index < last ? line[index + 1] : null;
+    const joined = next !== null && Math.abs(next - here) <= BIGGEST_STEP;
+
+    best = Math.min(best, joined
+      ? distanceToPiece(x, output, inputFor(index), here, inputFor(index + 1), next)
+      : Math.hypot(x - inputFor(index), output - here));
+  }
+  return best;
+}
+
+// Turns a distance into a level: 0 (spot on) up to 4 (way off).
+function levelFor(distance) {
+  // Rounded so that tiny decimal errors do not push a point into the next band.
+  const rounded = Math.round(distance * 100) / 100;
+  const level = BANDS.findIndex((band) => rounded <= band);
+  return level === -1 ? BANDS.length : level;
+}
+
+// Compares a drawing with the real curve.
+// drawing is a list with one output for each column, null where nothing is drawn.
+// Two things are measured: how close each part of the drawing is to the curve,
+// and how close each visible part of the curve is to the drawing. Both count towards the score.
+// levels: 0 to 4 for each drawn column, null where nothing was drawn.
+// missed: true where the curve is on the graph but the drawing is nowhere near it.
+function judge(drawing, machine) {
+  const whole = wholeCurve(machine);
+  const visible = visibleCurve(machine);
   const levels = [];
   const missed = [];
   let points = 0;
   let counted = 0;
 
-  curve.forEach((real, column) => {
-    const drawn = drawing[column];
+  for (let column = 0; column < COLUMNS; column += 1) {
     let level = null;
-
-    if (drawn !== null && real !== null) {
-      // Rounded so that tiny decimal errors do not push a point into the next band.
-      const error = Math.round(Math.abs(drawn - real) * 100) / 100;
-      // The level is the first band the error fits inside, or 4 if it fits none.
-      level = BANDS.findIndex((band) => error <= band);
-      if (level === -1) level = BANDS.length;
-    } else if (drawn !== null) {
-      // Drawing where there is no curve is as wrong as it gets.
-      level = BANDS.length;
+    if (drawing[column] !== null) {
+      level = levelFor(distanceToLine(column, drawing[column], whole));
+      points += 1 - level / BANDS.length;
+      counted += 1;
     }
 
-    // Columns that are empty in both the drawing and the real curve are not counted.
-    if (drawn !== null || real !== null) {
+    let isMissed = false;
+    if (visible[column] !== null) {
+      const covered = levelFor(distanceToLine(column, visible[column], drawing));
+      points += 1 - covered / BANDS.length;
       counted += 1;
-      // Level 0 earns a full point, level 4 (or a missed column) earns nothing.
-      if (level !== null) points += 1 - level / BANDS.length;
+      isMissed = covered === BANDS.length;
     }
     levels.push(level);
-    missed.push(drawn === null && real !== null);
-  });
+    missed.push(isMissed);
+  }
 
   const accuracy = counted === 0 ? 0 : Math.round((points / counted) * 100);
   return { levels, missed, accuracy, solved: accuracy >= SOLVED_AT };
@@ -317,5 +369,5 @@ module.exports = {
   COLUMNS, LIMIT, MAX_GOES, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machineFor, makeMachine,
-  pieces, starsFor, todayDate, visibleCurve
+  pieces, starsFor, todayDate, visibleCurve, wholeCurve
 };

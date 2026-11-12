@@ -72,7 +72,7 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
 
   const machine = machines[0];
   const curve = rules.visibleCurve(machine);
-  const result = rules.judge(drawing, curve);
+  const result = rules.judge(drawing, machine);
   const finished = result.solved || go === rules.MAX_GOES;
 
   const reply = {

@@ -47,21 +47,34 @@ assert.strictEqual(rules.asymptotes(hyperbola).length, 2);
 assert.strictEqual(rules.asymptotes(steep).length, 0);
 
 // Judging a drawing.
-const perfect = rules.judge(curve, curve);
+const perfect = rules.judge(curve, steep);
 assert.strictEqual(perfect.accuracy, 100);
 assert.strictEqual(perfect.solved, true);
 
-const empty = rules.judge(curve.map(() => null), curve);
+const empty = rules.judge(curve.map(() => null), steep);
 assert.strictEqual(empty.accuracy, 0);
 assert.ok(empty.missed.includes(true), 'an empty drawing misses the curve');
 
-const nudged = rules.judge(curve.map((value) => (value === null ? null : value + 1)), curve);
-assert.ok(nudged.levels.includes(1) && !nudged.levels.includes(0), 'one unit off is level 1, not spot on');
-assert.strictEqual(nudged.accuracy, 75);
+// A steep line drawn 0.4 to one side is over a unit out straight up and down,
+// but only a little way from the real line, so it must still score well.
+const beside = new Array(COLUMNS).fill(null);
+curve.forEach((value, column) => {
+  if (value !== null && column + 4 < COLUMNS) beside[column + 4] = value;
+});
+const sideways = rules.judge(beside, steep);
+assert.ok(sideways.accuracy >= 85, `a steep line drawn just to one side scores ${sideways.accuracy}`);
+assert.ok(!sideways.missed.includes(true), 'the curve is not missed when the drawing is right beside it');
 
-const scribble = rules.judge(curve.map(() => 9), curve);
-assert.ok(scribble.accuracy < 20, 'a flat line across the top scores badly');
-assert.strictEqual(scribble.levels[0], 4, 'drawing where there is no curve is the worst level');
+// A gentle line drawn one unit too high really is one unit away.
+const gentle = { family_id: LINE, a: 1, b: 0, c: 0 };
+const gentleCurve = rules.visibleCurve(gentle);
+const raised = rules.judge(gentleCurve.map((value) => value + 1), gentle);
+assert.ok(raised.levels.includes(1) && !raised.levels.includes(0), 'one unit off is level 1, not spot on');
+assert.ok(raised.accuracy >= 70 && raised.accuracy <= 80, `one unit off scores about 75, got ${raised.accuracy}`);
+
+const scribble = rules.judge(curve.map(() => 9), steep);
+assert.ok(scribble.accuracy < 25, `a flat line across the top scores badly, got ${scribble.accuracy}`);
+assert.strictEqual(scribble.levels[0], 4, 'drawing far from the curve is the worst level');
 
 assert.strictEqual(rules.pieces(steep), 1);
 assert.strictEqual(rules.pieces(hyperbola), 2, 'a hyperbola is in two pieces');
