@@ -9,9 +9,11 @@ const COLUMNS = 2 * LIMIT * STEPS_PER_UNIT + 1;
 const MAX_GOES = 5;
 // A drawing this accurate (as a percentage) counts as solved.
 const SOLVED_AT = 85;
-// How far off a drawn point can be and still count as spot on, or as close.
-const SPOT_ON = 0.5;
-const CLOSE = 1.5;
+// How far off a drawn point can be for each level of closeness.
+// Level 0 is within 0.5 (spot on), level 1 within 1, and so on. Anything further is level 4.
+const BANDS = [0.5, 1, 1.5, 2.5];
+// A stroke must cover at least this many columns to count, so a stray tap does not use up a go.
+const SHORTEST_STROKE = 8;
 const DAYS_OF_HISTORY = 30;
 
 const LINE = 1;
@@ -93,39 +95,47 @@ function exits(machine) {
 
 // Compares a drawing with the real curve, column by column.
 // drawing and curve are lists of numbers, with null where nothing is drawn or nothing exists.
-// marks: 'g' spot on, 'a' close, 'r' wrong, null where nothing was drawn.
+// levels: 0 (spot on) to 4 (way off) for each drawn column, null where nothing was drawn.
 // missed: true where the curve exists but nothing was drawn.
 function judge(drawing, curve) {
-  const marks = [];
+  const levels = [];
   const missed = [];
   let points = 0;
   let counted = 0;
 
   curve.forEach((real, column) => {
     const drawn = drawing[column];
-    let mark = null;
+    let level = null;
 
     if (drawn !== null && real !== null) {
-      const error = Math.abs(drawn - real);
-      if (error <= SPOT_ON) mark = 'g';
-      else if (error <= CLOSE) mark = 'a';
-      else mark = 'r';
+      // Rounded so that tiny decimal errors do not push a point into the next band.
+      const error = Math.round(Math.abs(drawn - real) * 100) / 100;
+      // The level is the first band the error fits inside, or 4 if it fits none.
+      level = BANDS.findIndex((band) => error <= band);
+      if (level === -1) level = BANDS.length;
     } else if (drawn !== null) {
-      mark = 'r';
+      // Drawing where there is no curve is as wrong as it gets.
+      level = BANDS.length;
     }
 
     // Columns that are empty in both the drawing and the real curve are not counted.
     if (drawn !== null || real !== null) {
       counted += 1;
-      if (mark === 'g') points += 1;
-      if (mark === 'a') points += 0.5;
+      // Level 0 earns a full point, level 4 (or a missed column) earns nothing.
+      if (level !== null) points += 1 - level / BANDS.length;
     }
-    marks.push(mark);
+    levels.push(level);
     missed.push(drawn === null && real !== null);
   });
 
   const accuracy = counted === 0 ? 0 : Math.round((points / counted) * 100);
-  return { marks, missed, accuracy, solved: accuracy >= SOLVED_AT };
+  return { levels, missed, accuracy, solved: accuracy >= SOLVED_AT };
+}
+
+// How many separate pieces the curve is in: one more than its vertical asymptotes.
+// The player gets this many strokes in each go.
+function pieces(machine) {
+  return 1 + asymptotes(machine).filter((line) => line.kind === 'vertical').length;
 }
 
 // Stars for a finished round: fewer goes is better, and unsolved gets none.
@@ -304,8 +314,8 @@ async function fillHistory() {
 }
 
 module.exports = {
-  COLUMNS, LIMIT, MAX_GOES, STEPS_PER_UNIT,
+  COLUMNS, LIMIT, MAX_GOES, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machineFor, makeMachine,
-  starsFor, todayDate, visibleCurve
+  pieces, starsFor, todayDate, visibleCurve
 };

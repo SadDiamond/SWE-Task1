@@ -56,12 +56,16 @@ assert.strictEqual(empty.accuracy, 0);
 assert.ok(empty.missed.includes(true), 'an empty drawing misses the curve');
 
 const nudged = rules.judge(curve.map((value) => (value === null ? null : value + 1)), curve);
-assert.ok(nudged.marks.includes('a') && !nudged.marks.includes('g'), 'one unit off is close, not spot on');
-assert.strictEqual(nudged.accuracy, 50);
+assert.ok(nudged.levels.includes(1) && !nudged.levels.includes(0), 'one unit off is level 1, not spot on');
+assert.strictEqual(nudged.accuracy, 75);
 
 const scribble = rules.judge(curve.map(() => 9), curve);
 assert.ok(scribble.accuracy < 20, 'a flat line across the top scores badly');
-assert.strictEqual(scribble.marks[0], 'r', 'drawing where there is no curve is wrong');
+assert.strictEqual(scribble.levels[0], 4, 'drawing where there is no curve is the worst level');
+
+assert.strictEqual(rules.pieces(steep), 1);
+assert.strictEqual(rules.pieces(hyperbola), 2, 'a hyperbola is in two pieces');
+assert.strictEqual(rules.pieces({ family_id: EXPONENTIAL, a: 1, b: 1, c: 0 }), 1, 'a flat asymptote does not split a curve');
 
 assert.strictEqual(rules.starsFor(true, 1), 3);
 assert.strictEqual(rules.starsFor(true, 4), 2);

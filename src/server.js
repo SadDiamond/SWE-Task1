@@ -36,7 +36,10 @@ app.get('/api/today', route(async (_request, response) => {
     difficulty: machine.difficulty,
     limit: rules.LIMIT,
     columns: rules.COLUMNS,
-    maxGoes: rules.MAX_GOES
+    maxGoes: rules.MAX_GOES,
+    // How many strokes make up one go. More than one means the curve has breaks in it.
+    strokes: rules.pieces(machine),
+    shortestStroke: rules.SHORTEST_STROKE
   });
 }));
 
@@ -73,7 +76,7 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
   const finished = result.solved || go === rules.MAX_GOES;
 
   const reply = {
-    marks: result.marks,
+    levels: result.levels,
     missed: result.missed,
     accuracy: result.accuracy,
     solved: result.solved,
