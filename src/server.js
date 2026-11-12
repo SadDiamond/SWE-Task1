@@ -1,6 +1,6 @@
 const path = require('node:path');
 const express = require('express');
-const { initialiseDatabase } = require('./db');
+const { all, initialiseDatabase } = require('./db');
 const rules = require('./rules');
 
 const app = express();
@@ -34,9 +34,27 @@ app.get('/api/today', route(async (_request, response) => {
     id: machine.id,
     date: machine.play_date,
     difficulty: machine.difficulty,
+    maxTests: rules.MAX_TESTS,
     minInput: rules.MIN_INPUT,
     maxInput: rules.MAX_INPUT
   });
+}));
+
+// Runs one test on a machine: a number goes in, a number comes out.
+app.post('/api/machines/:id/test', route(async (request, response) => {
+  const id = Number.parseInt(request.params.id, 10);
+  const input = request.body.input;
+
+  if (!Number.isInteger(input) || input < rules.MIN_INPUT || input > rules.MAX_INPUT) {
+    return response.status(400).json({
+      error: `Enter a whole number from ${rules.MIN_INPUT} to ${rules.MAX_INPUT}.`
+    });
+  }
+
+  const machines = await all('SELECT * FROM machines WHERE id = ? AND play_date <= ?', [id, rules.todayDate()]);
+  if (machines.length === 0) return response.status(404).json({ error: 'Machine not found.' });
+
+  response.json({ input, output: rules.evaluate(machines[0], input) });
 }));
 
 app.use('/api', (_request, response) => {
