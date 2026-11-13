@@ -579,7 +579,15 @@ button.primary:hover:not(:disabled) {
 
 .formula {
   position: relative;
-  font: 700 1.125rem var(--mono);
+}
+
+/* Formulas are drawn by the browser from MathML. */
+math {
+  font-size: 1.25em;
+}
+
+.formula math {
+  font-size: 1.375em;
 }
 
 .crayon {

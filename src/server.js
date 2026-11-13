@@ -1,5 +1,6 @@
 const path = require('node:path');
 const express = require('express');
+const katex = require('katex');
 const { all, initialiseDatabase, run } = require('./db');
 const auth = require('./auth');
 const rules = require('./rules');
@@ -25,6 +26,15 @@ app.use((_request, response, next) => {
 app.use(express.static(publicDirectory, { extensions: ['html'] }));
 // Works out who is logged in before any route runs. request.user is undefined for a guest.
 app.use(auth.loadUser);
+
+// Turns a curve's LaTeX formula into MathML, the markup browsers use to draw maths.
+// MathML is used because it needs no extra script, font or inline style on the page.
+// large is true where the formula stands on its own line, which gives full-size fractions.
+function formulaMath(machine, large) {
+  return katex.renderToString(rules.describe(machine), {
+    output: 'mathml', displayMode: large, throwOnError: false
+  });
+}
 
 // Runs a route and passes any database error to the error handler at the bottom.
 function route(handler) {
@@ -129,6 +139,7 @@ function reveal(machine, accuracy, solved, goes, hints) {
     curve: rules.visibleCurve(machine),
     familyName: rules.kindName(machine),
     formula: rules.describe(machine),
+    formulaMath: formulaMath(machine, true),
     asymptotes: rules.asymptotes(machine)
   };
 }
@@ -332,6 +343,7 @@ app.get('/api/history', auth.requireUser, route(async (request, response) => {
     slot: row.slot,
     familyName: rules.kindName(row),
     formula: rules.describe(row),
+    formulaMath: formulaMath(row, false),
     status: row.status,
     goes: row.goes,
     hints: row.hints,

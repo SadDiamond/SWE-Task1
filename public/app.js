@@ -13,6 +13,15 @@ function element(tag, text, className) {
   return item;
 }
 
+// Makes an element holding a formula. The server sends the formula as MathML, which it built
+// from the curve's own numbers, so it is safe to put straight into the page.
+function mathNode(markup) {
+  const holder = document.createElement('span');
+  holder.className = 'math';
+  holder.innerHTML = markup;
+  return holder;
+}
+
 // "1 go" or "3 goes".
 function goesText(count) {
   return count === 1 ? '1 go' : `${count} goes`;
@@ -262,7 +271,7 @@ async function todayPage() {
       }
       find('#result-working').replaceChildren(...lines.map((line) => element('li', line)));
       find('#result-family').textContent = result.familyName;
-      find('#result-formula').textContent = result.formula;
+      find('#result-formula').replaceChildren(mathNode(result.formulaMath));
 
       const more = rounds.some((item) => !item.result);
       let nextLabel = 'Next curve';
@@ -525,7 +534,8 @@ function addRow(body, values) {
     const cell = document.createElement(index === 0 ? 'th' : 'td');
     if (index === 0) cell.scope = 'row';
     if (typeof value === 'number') cell.className = 'number';
-    cell.textContent = value;
+    // append accepts plain text, numbers and ready-made elements alike.
+    cell.append(value);
     row.append(cell);
   });
   body.append(row);
@@ -536,6 +546,13 @@ function membersOnly() {
   find('#guest').hidden = Boolean(currentUser);
   find('#content').hidden = !currentUser;
   return Boolean(currentUser);
+}
+
+// The "Curve" cell of the history table: the kind's name, then its formula.
+function curveCell(row) {
+  const cell = document.createElement('span');
+  cell.append(`${row.familyName}: `, mathNode(row.formulaMath));
+  return cell;
 }
 
 async function historyPage() {
@@ -556,7 +573,7 @@ async function historyPage() {
       addRow(body, [
         shortDate(row.date),
         SLOT_NAMES[row.slot],
-        `${row.familyName}: ${row.formula}`,
+        curveCell(row),
         STATUS_NAMES[row.status],
         row.goes,
         row.hints,
