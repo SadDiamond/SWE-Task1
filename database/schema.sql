@@ -60,8 +60,14 @@ CREATE TABLE IF NOT EXISTS machines (
   a INTEGER NOT NULL CHECK (a BETWEEN -9 AND 9 AND a != 0),
   b INTEGER NOT NULL CHECK (b BETWEEN -9 AND 9),
   c INTEGER NOT NULL CHECK (c BETWEEN -9 AND 9),
+  -- Some curves are a mix: a second kind added to the first. These four are empty for a single kind.
+  extra_family_id INTEGER,
+  extra_a INTEGER CHECK (extra_a BETWEEN -9 AND 9 AND extra_a != 0),
+  extra_b INTEGER CHECK (extra_b BETWEEN -9 AND 9),
+  extra_c INTEGER CHECK (extra_c BETWEEN -9 AND 9),
   UNIQUE (play_date, slot),
-  FOREIGN KEY (family_id) REFERENCES families(id)
+  FOREIGN KEY (family_id) REFERENCES families(id),
+  FOREIGN KEY (extra_family_id) REFERENCES families(id)
 );
 
 -- One player's attempt at one curve. A player gets one attempt at each curve.
