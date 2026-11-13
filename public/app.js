@@ -52,10 +52,6 @@ function rounded(position) {
   return [Math.round(position.x * 100) / 100, Math.round(position.y * 100) / 100];
 }
 
-function starsText(stars) {
-  return '★'.repeat(stars) + '☆'.repeat(3 - stars);
-}
-
 async function start() {
   const game = await request('/api/today');
   const graph = find('#graph');
@@ -133,17 +129,17 @@ async function start() {
       button.type = 'button';
       button.append(
         element('span', `${item.slot}. ${SLOT_NAMES[item.slot]}`),
-        element('span', item.result ? starsText(item.result.stars) : '· · ·', 'tab-stars')
+        element('span', item.result ? `${item.result.score} / ${game.topScore}` : '· · ·', 'tab-score')
       );
       button.setAttribute('aria-pressed', String(item === round));
       button.addEventListener('click', () => chooseRound(item));
       tabs.append(button);
     });
 
-    const earned = rounds.reduce((total, item) => total + (item.result ? item.result.stars : 0), 0);
+    const earned = rounds.reduce((total, item) => total + (item.result ? item.result.score : 0), 0);
     const date = new Date(`${game.date}T00:00`);
     const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-    find('#machine-details').textContent = `${dateText} · ${earned} of ${rounds.length * 3} stars`;
+    find('#machine-details').textContent = `${dateText} · ${earned} of ${rounds.length * game.topScore} points`;
   }
 
   function showRound() {
@@ -158,7 +154,7 @@ async function start() {
     find('#hint').disabled = hintsLeft === 0;
     find('#hint-text').textContent = hintsLeft === 0
       ? 'No hints left for this curve.'
-      : `A hint shows one spot on the curve and costs a star. ${hintsLeft} left.`;
+      : `A hint shows one spot on the curve and costs ${game.hintPenalty} points. ${hintsLeft} left.`;
     find('#hint-text').hidden = Boolean(round.result);
 
     find('#stroke-info').textContent = round.strokesPerGo === 1
@@ -172,10 +168,19 @@ async function start() {
     if (round.result) {
       const result = round.result;
       find('#result-heading').textContent = result.solved
-        ? `Cracked it in ${goesText(round.goes)} with ${result.accuracy}%`
-        : `Out of goes. Your last one scored ${result.accuracy}%`;
-      find('#result-stars').textContent = starsText(result.stars);
-      find('#result-stars').setAttribute('aria-label', `${result.stars} out of 3 stars`);
+        ? `Cracked it in ${goesText(round.goes)}`
+        : 'Out of goes';
+      find('#result-score').textContent = result.score;
+      find('#result-top').textContent = `/ ${game.topScore}`;
+
+      // How the score was reached, one line for each thing that changed it.
+      const extraGoes = round.goes - 1;
+      const lines = [`${result.accuracy}% accurate: ${result.accuracy * (game.topScore / 100)}`];
+      if (extraGoes > 0) lines.push(`${goesText(extraGoes).replace('go', 'extra go')}: −${extraGoes * game.goPenalty}`);
+      if (round.dots.length > 0) {
+        lines.push(`${round.dots.length === 1 ? '1 hint' : `${round.dots.length} hints`}: −${round.dots.length * game.hintPenalty}`);
+      }
+      find('#result-working').replaceChildren(...lines.map((line) => element('li', line)));
       find('#result-family').textContent = result.familyName;
       find('#result-formula').textContent = result.formula;
 

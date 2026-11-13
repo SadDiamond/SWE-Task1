@@ -52,7 +52,8 @@
 
         <section id="result" class="result" aria-labelledby="result-heading" hidden>
           <h2 id="result-heading"></h2>
-          <p id="result-stars" class="stars"></p>
+          <p class="score"><span id="result-score"></span> <span id="result-top" class="score-top"></span></p>
+          <ul id="result-working" class="working"></ul>
           <p>Type of curve: <strong id="result-family"></strong></p>
           <p class="circled">
             <span id="result-formula" class="formula"></span>
@@ -84,7 +85,8 @@
           <p class="scale-labels"><span>Spot on</span><span>Way off</span></p>
           <ul>
             <li>The line is thick and green where you are on the curve, and gets thinner and redder the further away you are.</li>
-            <li><strong>● A dot</strong>: a hint. This spot is on the curve. Each hint costs one star.</li>
+            <li><strong>● A dot</strong>: a hint. This spot is on the curve. Each hint costs points.</li>
+            <li><strong>Scoring</strong>: each curve is out of 1000. Your accuracy sets the score, then every go after the first costs 100 and every hint costs 150.</li>
             <li><strong>▲ An arrow on the top or bottom edge</strong>: the curve leaves the graph here.</li>
             <li><strong>→ A small arrow on your line</strong>: you are well off here, and the curve is in that direction. It does not say how far.</li>
             <li><strong>A grey bar along the bottom</strong>: the curve is somewhere above, and you were nowhere near.</li>
