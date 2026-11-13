@@ -1,6 +1,7 @@
 README.md
 database/schema.sql
 public/index.html
+public/account.html
 public/styles.css
 public/app.js
 public/graph.js
@@ -9,3 +10,4 @@ scripts/check.js
 src/server.js
 src/db.js
 src/rules.js
+src/auth.js
