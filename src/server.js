@@ -276,6 +276,159 @@ app.post('/api/machines/:id/hint', route(async (request, response) => {
   response.json({ dot: rules.hintDots(machine)[number - 1] });
 }));
 
+/* History and stats */
+
+app.get('/api/families', route(async (_request, response) => {
+  response.json(await all('SELECT id, name, difficulty, description FROM families ORDER BY id'));
+}));
+
+// A player's finished attempts, newest first unless asked otherwise.
+// The filters and the sort order come from the address, e.g. /api/history?slot=3&sort=best
+app.get('/api/history', auth.requireUser, route(async (request, response) => {
+  const slot = Number.parseInt(request.query.slot, 10);
+  const family = Number.parseInt(request.query.family, 10);
+  const status = request.query.status;
+  // Only these exact orderings can be used, so nothing typed into the address ends up in the SQL.
+  const sortOptions = {
+    newest: 'machines.play_date DESC, machines.slot ASC',
+    oldest: 'machines.play_date ASC, machines.slot ASC',
+    best: 'plays.score DESC, machines.play_date DESC',
+    worst: 'plays.score ASC, machines.play_date DESC',
+    goes: 'plays.goes ASC, plays.score DESC'
+  };
+  const orderBy = sortOptions[request.query.sort] || sortOptions.newest;
+
+  const conditions = ['plays.user_id = ?', "plays.status != 'playing'"];
+  const values = [request.user.id];
+  if ([1, 2, 3].includes(slot)) {
+    conditions.push('machines.slot = ?');
+    values.push(slot);
+  }
+  if (Number.isInteger(family)) {
+    conditions.push('machines.family_id = ?');
+    values.push(family);
+  }
+  if (['solved', 'failed'].includes(status)) {
+    conditions.push('plays.status = ?');
+    values.push(status);
+  }
+
+  const rows = await all(`
+    SELECT machines.play_date, machines.slot, machines.family_id, machines.a, machines.b, machines.c,
+           families.name AS family_name,
+           plays.status, plays.goes, plays.hints, plays.accuracy, plays.score
+    FROM plays
+    INNER JOIN machines ON machines.id = plays.machine_id
+    INNER JOIN families ON families.id = machines.family_id
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY ${orderBy}
+    LIMIT 200
+  `, values);
+
+  response.json(rows.map((row) => ({
+    date: row.play_date,
+    slot: row.slot,
+    familyName: row.family_name,
+    formula: rules.describe(row),
+    status: row.status,
+    goes: row.goes,
+    hints: row.hints,
+    accuracy: row.accuracy,
+    score: row.score
+  })));
+}));
+
+// Counts days in a row from a list of dates sorted newest first.
+function countStreaks(dates, today) {
+  const dayNumbers = dates.map((date) => Math.floor(Date.parse(date) / 86400000));
+  const todayNumber = Math.floor(Date.parse(today) / 86400000);
+  let best = 0;
+  let run = 0;
+  let current = 0;
+
+  dayNumbers.forEach((day, index) => {
+    run = index > 0 && dayNumbers[index - 1] - day === 1 ? run + 1 : 1;
+    best = Math.max(best, run);
+    // The current streak is the unbroken run that reaches today or yesterday.
+    if (index === run - 1 && todayNumber - dayNumbers[0] <= 1) current = run;
+  });
+  return { current, best };
+}
+
+app.get('/api/stats', auth.requireUser, route(async (request, response) => {
+  const userId = request.user.id;
+
+  const totals = await all(`
+    SELECT COUNT(*) AS played,
+           COALESCE(SUM(plays.status = 'solved'), 0) AS cracked,
+           COALESCE(SUM(plays.score), 0) AS points,
+           ROUND(AVG(plays.score)) AS average_score,
+           MAX(plays.score) AS best_score,
+           ROUND(AVG(plays.goes), 1) AS average_goes,
+           COALESCE(SUM(plays.hints), 0) AS hints,
+           COUNT(DISTINCT machines.play_date) AS days
+    FROM plays
+    INNER JOIN machines ON machines.id = plays.machine_id
+    WHERE plays.user_id = ? AND plays.status != 'playing'
+  `, [userId]);
+
+  // Points for each day, to find the best one.
+  const bestDay = await all(`
+    SELECT machines.play_date AS date, SUM(plays.score) AS points
+    FROM plays
+    INNER JOIN machines ON machines.id = plays.machine_id
+    WHERE plays.user_id = ? AND plays.status != 'playing'
+    GROUP BY machines.play_date
+    ORDER BY points DESC, machines.play_date DESC
+    LIMIT 1
+  `, [userId]);
+
+  const byDifficulty = await all(`
+    SELECT machines.slot,
+           COUNT(*) AS played,
+           SUM(plays.status = 'solved') AS cracked,
+           ROUND(AVG(plays.score)) AS average_score,
+           ROUND(AVG(plays.goes), 1) AS average_goes
+    FROM plays
+    INNER JOIN machines ON machines.id = plays.machine_id
+    WHERE plays.user_id = ? AND plays.status != 'playing'
+    GROUP BY machines.slot
+    ORDER BY machines.slot
+  `, [userId]);
+
+  // Only the types of curve this player has actually met are listed (HAVING drops the rest).
+  const byFamily = await all(`
+    SELECT families.name,
+           COUNT(plays.id) AS played,
+           SUM(plays.status = 'solved') AS cracked,
+           ROUND(AVG(plays.score)) AS average_score,
+           MAX(plays.score) AS best_score
+    FROM families
+    INNER JOIN machines ON machines.family_id = families.id
+    INNER JOIN plays ON plays.machine_id = machines.id
+    WHERE plays.user_id = ? AND plays.status != 'playing'
+    GROUP BY families.id
+    HAVING COUNT(plays.id) > 0
+    ORDER BY average_score DESC
+  `, [userId]);
+
+  const days = await all(`
+    SELECT DISTINCT machines.play_date AS date
+    FROM plays
+    INNER JOIN machines ON machines.id = plays.machine_id
+    WHERE plays.user_id = ? AND plays.status != 'playing'
+    ORDER BY machines.play_date DESC
+  `, [userId]);
+
+  response.json({
+    totals: totals[0],
+    bestDay: bestDay[0] || null,
+    streak: countStreaks(days.map((row) => row.date), rules.todayDate()),
+    byDifficulty,
+    byFamily
+  });
+}));
+
 app.use('/api', (_request, response) => {
   response.status(404).json({ error: 'That address does not exist on the server.' });
 });
