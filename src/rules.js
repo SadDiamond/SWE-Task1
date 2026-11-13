@@ -19,6 +19,9 @@ const SHORTEST_STROKE = 1.5;
 const BIGGEST_STEP = 6;
 // How many columns either side to look when measuring how far a point is from the curve.
 const REACH = 30;
+// Nudges appear on parts of a drawing at this level or worse, one for every so many units of line.
+const NUDGE_FROM_LEVEL = 3;
+const NUDGE_SPACING = 1.5;
 // The most pen positions one go may contain, so a request cannot be made enormous.
 const MOST_POINTS = 3000;
 const DAYS_OF_HISTORY = 30;
@@ -111,24 +114,29 @@ function wholeCurve(machine) {
   return curve;
 }
 
-// The shortest distance from the point (x, y) to the straight piece of line from (x1, y1) to (x2, y2).
-function distanceToPiece(x, y, x1, y1, x2, y2) {
+// The spot on the straight piece of line from (x1, y1) to (x2, y2) that is closest to the point (x, y).
+function closestOnPiece(x, y, x1, y1, x2, y2) {
   const lengthSquared = (x2 - x1) ** 2 + (y2 - y1) ** 2;
   // How far along the piece the closest spot is: 0 at the start, 1 at the end.
   let along = lengthSquared === 0 ? 0 : ((x - x1) * (x2 - x1) + (y - y1) * (y2 - y1)) / lengthSquared;
   along = Math.max(0, Math.min(1, along));
-  return Math.hypot(x - (x1 + along * (x2 - x1)), y - (y1 + along * (y2 - y1)));
+  return { x: x1 + along * (x2 - x1), y: y1 + along * (y2 - y1) };
 }
 
-// The shortest distance from a point to the real curve, measured in any direction.
+function distanceToPiece(x, y, x1, y1, x2, y2) {
+  const spot = closestOnPiece(x, y, x1, y1, x2, y2);
+  return Math.hypot(x - spot.x, y - spot.y);
+}
+
+// Finds the spot on the real curve closest to a point, measured in any direction.
 // Measuring straight up and down would be unfair on steep curves, where being a little
 // to one side looks like a huge error.
-// curve is a list with one output for each column.
-function distanceToCurve(x, y, curve) {
+// curve is a list with one output for each column. Gives { distance, x, y }.
+function nearestOnCurve(x, y, curve) {
   const nearest = Math.round((x + LIMIT) * STEPS_PER_UNIT);
   const first = Math.max(0, nearest - REACH);
   const last = Math.min(COLUMNS - 1, nearest + REACH);
-  let best = Infinity;
+  let best = { distance: Infinity, x: null, y: null };
 
   for (let column = first; column <= last; column += 1) {
     const here = curve[column];
@@ -136,9 +144,11 @@ function distanceToCurve(x, y, curve) {
     const next = column < last ? curve[column + 1] : null;
     const joined = next !== null && Math.abs(next - here) <= BIGGEST_STEP;
 
-    best = Math.min(best, joined
-      ? distanceToPiece(x, y, inputFor(column), here, inputFor(column + 1), next)
-      : Math.hypot(x - inputFor(column), y - here));
+    const spot = joined
+      ? closestOnPiece(x, y, inputFor(column), here, inputFor(column + 1), next)
+      : { x: inputFor(column), y: here };
+    const distance = Math.hypot(x - spot.x, y - spot.y);
+    if (distance < best.distance) best = { distance, ...spot };
   }
   return best;
 }
@@ -179,13 +189,30 @@ function judge(strokes, machine) {
   // (which makes more pen positions) is worth no more than drawing quickly.
   let inkLength = 0;
   let inkOnCurve = 0;
+  // Nudges are small arrows on the badly-off parts of the line, pointing towards the curve.
+  const nudges = [];
+  let sinceNudge = NUDGE_SPACING / 2;
+
   const levels = strokes.map((stroke) => stroke.map(([x, y], index) => {
-    const level = levelFor(distanceToCurve(x, y, whole));
+    const spot = nearestOnCurve(x, y, whole);
+    const level = levelFor(spot.distance);
     if (index > 0) {
       const [previousX, previousY] = stroke[index - 1];
       const length = Math.hypot(x - previousX, y - previousY);
       inkLength += length;
       inkOnCurve += length * (1 - level / BANDS.length);
+      sinceNudge += length;
+    }
+    // One nudge for every stretch of line, and only where the line is well off.
+    // It gives the direction to the curve but always has the same length, so not the distance.
+    if (level >= NUDGE_FROM_LEVEL && sinceNudge >= NUDGE_SPACING && spot.distance < Infinity) {
+      nudges.push({
+        x,
+        y,
+        across: Math.round(((spot.x - x) / spot.distance) * 100) / 100,
+        up: Math.round(((spot.y - y) / spot.distance) * 100) / 100
+      });
+      sinceNudge = 0;
     }
     return level;
   }));
@@ -204,7 +231,7 @@ function judge(strokes, machine) {
   const precision = inkLength === 0 ? 0 : inkOnCurve / inkLength;
   const coverage = curvePoints === 0 ? 0 : curveCovered / curvePoints;
   const accuracy = Math.round(((precision + coverage) / 2) * 100);
-  return { levels, missed, accuracy, solved: accuracy >= SOLVED_AT };
+  return { levels, nudges, missed, accuracy, solved: accuracy >= SOLVED_AT };
 }
 
 // Checks that a drawing sent by the browser is the right shape before it is marked:
@@ -223,6 +250,22 @@ function validDrawing(strokes) {
     }
   }
   return points <= MOST_POINTS;
+}
+
+// The clue dots shown before the first go: spots that are on the curve.
+// Easy curves get three, medium two and hard one, spread evenly along the visible part.
+function starterDots(machine) {
+  const visible = [];
+  visibleCurve(machine).forEach((output, column) => {
+    if (output !== null) visible.push([Math.round(inputFor(column) * 10) / 10, output]);
+  });
+
+  const count = 4 - machine.slot;
+  const dots = [];
+  for (let index = 1; index <= count; index += 1) {
+    dots.push(visible[Math.floor((visible.length * index) / (count + 1))]);
+  }
+  return dots;
 }
 
 // How many separate pieces the curve is in: one more than its vertical asymptotes.
@@ -420,5 +463,5 @@ module.exports = {
   COLUMNS, LIMIT, MAX_GOES, MOST_POINTS, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
-  pieces, starsFor, todayDate, validDrawing, visibleCurve, wholeCurve
+  pieces, starsFor, starterDots, todayDate, validDrawing, visibleCurve, wholeCurve
 };

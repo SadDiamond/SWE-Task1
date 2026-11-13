@@ -41,7 +41,10 @@ app.get('/api/today', route(async (_request, response) => {
       id: machine.id,
       slot: machine.slot,
       // How many strokes make up one go. More than one means the curve has breaks in it.
-      strokesPerGo: rules.pieces(machine)
+      strokesPerGo: rules.pieces(machine),
+      // Clues that are there before the first go, so it is not a blind guess.
+      exits: rules.exits(machine),
+      dots: rules.starterDots(machine)
     }))
   });
 }));
@@ -72,11 +75,11 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
 
   const reply = {
     levels: result.levels,
+    nudges: result.nudges,
     missed: result.missed,
     accuracy: result.accuracy,
     solved: result.solved,
-    finished,
-    exits: rules.exits(machine)
+    finished
   };
   // The real curve is only sent once the round is over.
   if (finished) {

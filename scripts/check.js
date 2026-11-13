@@ -80,6 +80,32 @@ const flat = rules.judge([[[-10, 9], [10, 9]]], steep);
 assert.ok(flat.accuracy < 25, `a flat line across the top scores badly, got ${flat.accuracy}`);
 assert.ok(flat.missed.includes(true), 'most of the curve is missed');
 
+// Nudges point from a badly-off line towards the curve, and say nothing about how far.
+// A real drawing has a pen position every little way, so this builds a flat line like that.
+function flatLine(height) {
+  const stroke = [];
+  for (let x = -10; x <= 10; x += 0.1) stroke.push([Math.round(x * 10) / 10, height]);
+  return [stroke];
+}
+const high = rules.judge(flatLine(9), gentle);
+assert.ok(high.nudges.length > 3, 'a line that is way off gets several nudges');
+assert.ok(high.nudges.every((nudge) => Math.abs(Math.hypot(nudge.across, nudge.up) - 1) < 0.02), 'every nudge is the same length');
+assert.ok(high.nudges.every((nudge) => nudge.up < 0), 'a line far above the curve is nudged downwards');
+const below = rules.judge(flatLine(-9), gentle);
+assert.ok(below.nudges.every((nudge) => nudge.up > 0), 'a line far below the curve is nudged upwards');
+assert.strictEqual(perfect.nudges.length, 0, 'a line on the curve gets no nudges');
+assert.strictEqual(raised.nudges.length, 0, 'a line that is only a little off gets no nudges');
+
+// Starter dots are on the curve: three for easy, two for medium, one for hard.
+for (const slot of [1, 2, 3]) {
+  const machine = { ...rules.makeMachine('2026-11-13', slot), slot };
+  const dots = rules.starterDots(machine);
+  assert.strictEqual(dots.length, 4 - slot);
+  dots.forEach(([x, y]) => {
+    assert.ok(Math.abs(rules.evaluate(machine, x) - y) < 0.01, 'each dot sits on the curve');
+  });
+}
+
 // Drawings do not have to be functions: a vertical line and a loop are both accepted and marked.
 const vertical = rules.judge([[[0, -9], [0, 9]]], steep);
 assert.ok(vertical.accuracy > flat.accuracy, 'a vertical line through a steep curve beats a flat one');
