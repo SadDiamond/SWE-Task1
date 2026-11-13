@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A daily puzzle: find the hidden curve by drawing it.">
+    <link rel="stylesheet" href="/styles.css">
+    <title>Stats · Placeholder</title>
+  </head>
+  <body data-page="stats">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="top">
+      <a class="brand" href="/">Placeholder</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="/">Today</a></li>
+          <li><a href="/history.html">History</a></li>
+          <li><a href="/stats.html" aria-current="page">Stats</a></li>
+          <li><a href="/account.html" id="account-link">Log in</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main">
+      <h1>Stats</h1>
+      <p id="form-status" class="status" role="status" aria-live="polite"></p>
+      <p id="guest" hidden>
+        Your stats are kept with your account. <a href="/account.html">Log in or sign up</a> to start counting.
+      </p>
+
+      <div id="content" hidden>
+        <dl class="figures">
+          <div><dt>Points so far</dt><dd id="stat-points"></dd></div>
+          <div><dt>Days played</dt><dd id="stat-days"></dd></div>
+          <div><dt>Day streak</dt><dd id="stat-streak"></dd></div>
+          <div><dt>Longest streak</dt><dd id="stat-best-streak"></dd></div>
+          <div><dt>Curves cracked</dt><dd id="stat-cracked"></dd></div>
+          <div><dt>Average score</dt><dd id="stat-average"></dd></div>
+          <div><dt>Average goes</dt><dd id="stat-goes"></dd></div>
+          <div><dt>Best day</dt><dd id="stat-best-day"></dd></div>
+        </dl>
+
+        <h2>By difficulty</h2>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Difficulty</th>
+                <th scope="col" class="number">Played</th>
+                <th scope="col" class="number">Cracked</th>
+                <th scope="col" class="number">Average score</th>
+                <th scope="col" class="number">Average goes</th>
+              </tr>
+            </thead>
+            <tbody id="difficulty-rows"></tbody>
+          </table>
+        </div>
+
+        <h2>By type of curve</h2>
+        <p class="help">Best first. Only the types you have met so far are listed.</p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Type</th>
+                <th scope="col" class="number">Played</th>
+                <th scope="col" class="number">Cracked</th>
+                <th scope="col" class="number">Average score</th>
+                <th scope="col" class="number">Best score</th>
+              </tr>
+            </thead>
+            <tbody id="family-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>Placeholder. A Year 12 Software Engineering project.</p>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

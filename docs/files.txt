@@ -2,6 +2,8 @@ README.md
 database/schema.sql
 public/index.html
 public/account.html
+public/history.html
+public/stats.html
 public/styles.css
 public/app.js
 public/graph.js

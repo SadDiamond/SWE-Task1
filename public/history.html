@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A daily puzzle: find the hidden curve by drawing it.">
+    <link rel="stylesheet" href="/styles.css">
+    <title>History · Placeholder</title>
+  </head>
+  <body data-page="history">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="top">
+      <a class="brand" href="/">Placeholder</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="/">Today</a></li>
+          <li><a href="/history.html" aria-current="page">History</a></li>
+          <li><a href="/stats.html">Stats</a></li>
+          <li><a href="/account.html" id="account-link">Log in</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main">
+      <h1>History</h1>
+      <p id="form-status" class="status" role="status" aria-live="polite"></p>
+      <p id="guest" hidden>
+        Your history is kept with your account. <a href="/account.html">Log in or sign up</a> to start one.
+      </p>
+
+      <div id="content" hidden>
+        <p class="intro">Every curve you have finished. Use the boxes to narrow the list or change its order.</p>
+
+        <form id="filters" class="filters">
+          <div>
+            <label for="slot">Difficulty</label>
+            <select id="slot" name="slot">
+              <option value="">Any</option>
+              <option value="1">Easy</option>
+              <option value="2">Medium</option>
+              <option value="3">Hard</option>
+            </select>
+          </div>
+          <div>
+            <label for="family">Type of curve</label>
+            <select id="family" name="family">
+              <option value="">Any</option>
+            </select>
+          </div>
+          <div>
+            <label for="status">Result</label>
+            <select id="status" name="status">
+              <option value="">Any</option>
+              <option value="solved">Cracked</option>
+              <option value="failed">Out of goes</option>
+            </select>
+          </div>
+          <div>
+            <label for="sort">Order</label>
+            <select id="sort" name="sort">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="best">Highest score</option>
+              <option value="worst">Lowest score</option>
+              <option value="goes">Fewest goes</option>
+            </select>
+          </div>
+        </form>
+
+        <p id="count" class="help" aria-live="polite"></p>
+        <div class="scroll">
+          <table>
+            <caption class="visually-hidden">Finished curves</caption>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Difficulty</th>
+                <th scope="col">Curve</th>
+                <th scope="col">Result</th>
+                <th scope="col" class="number">Goes</th>
+                <th scope="col" class="number">Hints</th>
+                <th scope="col" class="number">Score</th>
+              </tr>
+            </thead>
+            <tbody id="history-rows"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <p>Placeholder. A Year 12 Software Engineering project.</p>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
