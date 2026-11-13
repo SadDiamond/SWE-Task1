@@ -139,7 +139,8 @@ async function start() {
     const earned = rounds.reduce((total, item) => total + (item.result ? item.result.score : 0), 0);
     const date = new Date(`${game.date}T00:00`);
     const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-    find('#machine-details').textContent = `${dateText} · ${earned} of ${rounds.length * game.topScore} points`;
+    // A running total that grows as curves are finished. There is no "out of" on it.
+    find('#machine-details').textContent = `${dateText} · ${earned} ${earned === 1 ? 'point' : 'points'}`;
   }
 
   function showRound() {
