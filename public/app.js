@@ -119,28 +119,59 @@ async function start() {
     }, 1800);
   }
 
-  /* The three tabs and everything that depends on which curve is chosen */
+  /* Progress through the day's three curves, and the score */
 
-  function showTabs() {
-    const tabs = find('#tabs');
-    tabs.replaceChildren();
+  // Counts a number up on screen from one value to another, over about a second.
+  // People who have asked their device for less motion get the final number straight away.
+  function countUp(target, from, to) {
+    const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still || from === to) {
+      target.textContent = to;
+      return;
+    }
+    const length = 900;
+    const began = performance.now();
+    function step(now) {
+      const done = Math.min(1, (now - began) / length);
+      // Easing: quick at first, slowing as it reaches the final number.
+      const eased = 1 - (1 - done) ** 3;
+      target.textContent = Math.round(from + (to - from) * eased);
+      if (done < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function totalScore() {
+    return rounds.reduce((total, item) => total + (item.result ? item.result.score : 0), 0);
+  }
+
+  // The total in the header. It is remembered so the next change can count up from it.
+  let totalOnScreen = 0;
+  function showTotal() {
+    countUp(find('#total'), totalOnScreen, totalScore());
+    totalOnScreen = totalScore();
+  }
+
+  // The three curves are played in order. This shows which are done, which is being played
+  // and which are still locked. It is a list, not buttons: the player cannot skip ahead.
+  function showProgress() {
+    const list = find('#tabs');
+    list.replaceChildren();
     rounds.forEach((item) => {
-      const button = element('button', undefined, 'tab');
-      button.type = 'button';
-      button.append(
-        element('span', `${item.slot}. ${SLOT_NAMES[item.slot]}`),
-        element('span', item.result ? `${item.result.score} / ${game.topScore}` : '· · ·', 'tab-score')
-      );
-      button.setAttribute('aria-pressed', String(item === round));
-      button.addEventListener('click', () => chooseRound(item));
-      tabs.append(button);
+      let state = 'locked';
+      let note = 'Locked';
+      if (item.result) {
+        state = 'done';
+        note = `${item.result.score}`;
+      } else if (item === round) {
+        state = 'current';
+        note = 'Now';
+      }
+      const step = element('li', undefined, `tab ${state}`);
+      step.append(element('span', `${item.slot}. ${SLOT_NAMES[item.slot]}`), element('span', note, 'tab-score'));
+      if (state === 'current') step.setAttribute('aria-current', 'step');
+      list.append(step);
     });
-
-    const earned = rounds.reduce((total, item) => total + (item.result ? item.result.score : 0), 0);
-    const date = new Date(`${game.date}T00:00`);
-    const dateText = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
-    // A running total that grows as curves are finished. There is no "out of" on it.
-    find('#machine-details').textContent = `${dateText} · ${earned} ${earned === 1 ? 'point' : 'points'}`;
   }
 
   function showRound() {
@@ -171,8 +202,10 @@ async function start() {
       find('#result-heading').textContent = result.solved
         ? `Cracked it in ${goesText(round.goes)}`
         : 'Out of goes';
-      find('#result-score').textContent = result.score;
       find('#result-top').textContent = `/ ${game.topScore}`;
+      // The score counts up from zero, and the total in the header climbs by the same amount.
+      countUp(find('#result-score'), 0, result.score);
+      showTotal();
 
       // How the score was reached, one line for each thing that changed it.
       const extraGoes = round.goes - 1;
@@ -185,28 +218,60 @@ async function start() {
       find('#result-family').textContent = result.familyName;
       find('#result-formula').textContent = result.formula;
 
-      const unfinished = rounds.find((item) => !item.result);
-      find('#next-curve').hidden = !unfinished;
-      find('#day-done').hidden = Boolean(unfinished);
+      const more = rounds.some((item) => !item.result);
+      find('#next-curve').textContent = more ? 'Next curve' : "See today's result";
     }
-    showTabs();
+    showProgress();
     showGraph();
   }
 
-  function chooseRound(item) {
-    if (waiting) return;
-    // A half-drawn go is dropped when leaving a curve.
-    round.strokes = [];
-    round = item;
+  /* The end screen */
+
+  function showSummary() {
+    const rows = find('#summary-rows');
+    rows.replaceChildren();
+    rounds.forEach((item, index) => {
+      const row = document.createElement('li');
+      // Each row arrives a little after the one before it.
+      row.style.setProperty('--order', index);
+      const detail = `${item.result.familyName} · ${goesText(item.goes)}`
+        + (item.dots.length > 0 ? ` · ${item.dots.length === 1 ? '1 hint' : `${item.dots.length} hints`}` : '');
+      row.append(
+        element('span', SLOT_NAMES[item.slot], 'summary-name'),
+        element('span', detail, 'summary-detail'),
+        element('span', item.result.score, 'summary-score')
+      );
+      rows.append(row);
+    });
+
+    find('.layout').classList.add('ended');
+    find('#summary').hidden = false;
+    countUp(find('#summary-total'), 0, totalScore());
+    find('#summary-heading').focus();
+  }
+
+  find('#next-curve').addEventListener('click', () => {
+    const next = rounds.find((item) => !item.result);
+    if (!next) return showSummary();
+
+    round = next;
     clearTimeout(percentTimer);
     percent = null;
     message('');
     showRound();
-  }
-
-  find('#next-curve').addEventListener('click', () => {
-    chooseRound(rounds.find((item) => !item.result));
     find('#tabs').scrollIntoView({ block: 'nearest' });
+  });
+
+  find('#copy-result').addEventListener('click', async () => {
+    const date = new Date(`${game.date}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'long' });
+    const scores = rounds.map((item) => `${SLOT_NAMES[item.slot]} ${item.result.score}`).join(' · ');
+    const text = `Placeholder, ${date}\n${scores}\nTotal ${totalScore()}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      find('#copy-status').textContent = 'Copied.';
+    } catch (_error) {
+      find('#copy-status').textContent = text;
+    }
   });
 
   find('#hint').addEventListener('click', async () => {
@@ -348,6 +413,8 @@ async function start() {
   // The graph is drawn at its real size, so it needs redrawing when the window changes.
   window.addEventListener('resize', showGraph);
 
+  const date = new Date(`${game.date}T00:00`);
+  find('#today-date').textContent = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   showRound();
 }
 

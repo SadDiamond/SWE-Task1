@@ -22,15 +22,15 @@
     <main id="main" class="layout">
       <div class="lead">
         <h1>Today's curves</h1>
-        <p id="machine-details" class="details">Loading…</p>
+        <p class="details"><span id="today-date">Loading…</span> · <span id="total" class="total">0</span> points</p>
         <p class="intro">
-          Three curves are hiding today: one easy, one medium, one hard. The arrows on the
+          Three curves are hiding today, played in order: easy, medium, then hard. The arrows on the
           edges show where a curve leaves the graph. Draw where you think it goes. The moment
           you lift your pen, your line is marked: green where you are on it, red where you
           are way off.
         </p>
 
-        <div id="tabs" class="tabs" role="group" aria-label="Choose a curve"></div>
+        <ol id="tabs" class="tabs" aria-label="Today's three curves, played in order"></ol>
         <p id="stroke-info" class="stroke-info"></p>
       </div>
 
@@ -74,7 +74,6 @@
             asymptotes: lines the curve gets close to but never touches.
           </p>
           <button type="button" id="next-curve" class="primary">Next curve</button>
-          <p id="day-done" hidden>That is all three for today. Come back tomorrow for new ones.</p>
         </section>
 
         <section class="key" aria-labelledby="key-heading">
@@ -103,6 +102,15 @@
           </details>
         </section>
       </div>
+
+      <section id="summary" class="summary" aria-labelledby="summary-heading" hidden>
+        <h2 id="summary-heading" tabindex="-1">Today's result</h2>
+        <p class="summary-total"><span id="summary-total">0</span> <span class="score-top">points</span></p>
+        <ol id="summary-rows" class="summary-rows"></ol>
+        <button type="button" id="copy-result">Copy result</button>
+        <p id="copy-status" class="help" role="status" aria-live="polite"></p>
+        <p>That is all three for today. Come back tomorrow for new ones.</p>
+      </section>
     </main>
 
     <footer>

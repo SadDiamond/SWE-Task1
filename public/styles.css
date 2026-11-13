@@ -187,35 +187,49 @@ p {
   font-size: 0.9375rem;
 }
 
-/* The three curves of the day, chosen like tabs */
+/* Progress through the day's three curves: done, now, and locked */
 
 .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
 }
 
 .tab {
   flex: 1 1 6rem;
+  display: flex;
   flex-direction: column;
-  align-items: flex-start;
   gap: 0.125rem;
   padding: 0.5rem 0.875rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  background: #ffffff;
+  font: 400 1.1875rem var(--hand);
 }
 
-.tab[aria-pressed="true"] {
+.tab.current {
   background: var(--ink);
   color: #ffffff;
 }
 
-.tab[aria-pressed="true"]:hover {
-  background: var(--ink);
+.tab.locked {
+  border-style: dashed;
+  border-color: var(--grid-major);
+  color: var(--muted);
 }
 
 .tab-score {
   font-family: var(--text);
   font-size: 0.9375rem;
+}
+
+.total {
+  color: var(--ink);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .stroke-info {
@@ -633,5 +647,94 @@ summary {
 
   100% {
     opacity: 0;
+  }
+}
+
+/* The end screen takes the place of the graph once all three curves are done */
+
+.summary {
+  grid-area: board;
+  padding: 1.5rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  background: #ffffff;
+}
+
+.layout.ended .board,
+.layout.ended .rest,
+.layout.ended .intro,
+.layout.ended .stroke-info {
+  display: none;
+}
+
+.summary-total {
+  margin: 0.25rem 0 1rem;
+  color: var(--wrong);
+  font: 400 clamp(4rem, 14vw, 7rem)/1 var(--hand);
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-rows {
+  max-width: 34rem;
+  margin: 0 0 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.summary-rows li {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.625rem 0;
+  border-bottom: 2px dashed var(--grid-major);
+}
+
+.summary-name,
+.summary-score {
+  font: 400 1.5rem var(--hand);
+}
+
+.summary-score {
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-detail {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+/* Movement on the end screen. Left out for people who ask their device for less motion. */
+
+@media (prefers-reduced-motion: no-preference) {
+  .summary-rows li {
+    animation: arrive 0.45s ease-out both;
+    /* --order is 0, 1 or 2, so each row starts a little after the one above. */
+    animation-delay: calc(0.3s + var(--order) * 0.25s);
+  }
+
+  .summary-total {
+    animation: stamp 0.5s ease-out 1s both;
+  }
+}
+
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+@keyframes stamp {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.12) rotate(-2deg);
+  }
+
+  100% {
+    transform: scale(1) rotate(-1deg);
   }
 }
