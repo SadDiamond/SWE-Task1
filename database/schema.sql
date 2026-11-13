@@ -13,6 +13,24 @@ PRAGMA foreign_keys = ON;
 --   FOREIGN KEY (family_id) REFERENCES families(id)
 -- );
 
+-- People who have signed up. The password itself is never stored, only a hash of it.
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE CHECK (length(username) BETWEEN 3 AND 20),
+  display_name TEXT NOT NULL CHECK (length(trim(display_name)) BETWEEN 1 AND 30),
+  password_hash TEXT NOT NULL CHECK (length(password_hash) = 128),
+  password_salt TEXT NOT NULL CHECK (length(password_salt) = 32),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- One row for each browser that is logged in.
+CREATE TABLE IF NOT EXISTS sessions (
+  token TEXT PRIMARY KEY CHECK (length(token) = 64),
+  user_id INTEGER NOT NULL,
+  expires_at TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 -- The kinds of function a daily curve can be.
 CREATE TABLE IF NOT EXISTS families (
   id INTEGER PRIMARY KEY,
@@ -46,7 +64,41 @@ CREATE TABLE IF NOT EXISTS machines (
   FOREIGN KEY (family_id) REFERENCES families(id)
 );
 
+-- One player's attempt at one curve. A player gets one attempt at each curve.
+-- accuracy and score are filled in when the attempt is finished.
+CREATE TABLE IF NOT EXISTS plays (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  machine_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'playing' CHECK (status IN ('playing', 'solved', 'failed')),
+  goes INTEGER NOT NULL DEFAULT 0 CHECK (goes BETWEEN 0 AND 5),
+  hints INTEGER NOT NULL DEFAULT 0 CHECK (hints BETWEEN 0 AND 3),
+  accuracy INTEGER CHECK (accuracy BETWEEN 0 AND 100),
+  score INTEGER CHECK (score BETWEEN 0 AND 1000),
+  started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at TEXT,
+  UNIQUE (user_id, machine_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (machine_id) REFERENCES machines(id)
+);
+
+-- Every go within an attempt. The drawing is kept as JSON text: a list of strokes,
+-- each a list of [x, y] pen positions, so it can be shown again later.
+CREATE TABLE IF NOT EXISTS goes (
+  id INTEGER PRIMARY KEY,
+  play_id INTEGER NOT NULL,
+  number INTEGER NOT NULL CHECK (number BETWEEN 1 AND 5),
+  drawing TEXT NOT NULL CHECK (length(drawing) BETWEEN 10 AND 100000),
+  accuracy INTEGER NOT NULL CHECK (accuracy BETWEEN 0 AND 100),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (play_id, number),
+  FOREIGN KEY (play_id) REFERENCES plays(id) ON DELETE CASCADE
+);
+
 CREATE INDEX IF NOT EXISTS idx_machines_family ON machines(family_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_plays_user ON plays(user_id);
+CREATE INDEX IF NOT EXISTS idx_goes_play ON goes(play_id);
 
 INSERT OR IGNORE INTO families (id, name, difficulty, description) VALUES
   (1, 'Straight line', 1, 'Goes up or down by the same amount with every step across.'),
