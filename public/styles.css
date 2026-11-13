@@ -827,3 +827,115 @@ a.button:hover {
   justify-items: start;
   margin: 0 0 1.25rem;
 }
+
+/* Looking back: once a run is finished the steps are buttons */
+
+.tab-button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.tab-button:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+
+.tab.viewing {
+  background: var(--ink);
+  color: #ffffff;
+}
+
+/* History and stats */
+
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0 1rem;
+  max-width: 48rem;
+  margin: 0.5rem 0 1rem;
+}
+
+select {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+}
+
+/* A wide table scrolls sideways inside its own box instead of pushing the page wider. */
+.scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 2px dashed var(--grid-major);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+thead th {
+  border-bottom: 2px solid var(--ink);
+  font: 400 1.1875rem var(--hand);
+}
+
+tbody th {
+  font-weight: 400;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The headline numbers on the stats page */
+
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 2rem;
+}
+
+.figures div {
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  background: #ffffff;
+}
+
+.figures dt {
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.figures dd {
+  margin: 0;
+  font: 400 2rem/1.2 var(--hand);
+}
+
+main > h2,
+#content > h2 {
+  margin-top: 2rem;
+}

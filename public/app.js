@@ -172,9 +172,15 @@ async function todayPage() {
 
   // The three curves are played in order. This shows which are done, which is being played
   // and which are still locked. It is a list, not buttons: the player cannot skip ahead.
+  // True while the end screen is showing. It has been seen once this is ever set.
+  let summaryOpen = false;
+  let summarySeen = false;
+
   function showProgress() {
     const list = find('#tabs');
+    const allDone = rounds.every((item) => item.result);
     list.replaceChildren();
+
     rounds.forEach((item) => {
       let state = 'locked';
       let note = 'Locked';
@@ -185,11 +191,34 @@ async function todayPage() {
         state = 'current';
         note = 'Now';
       }
+      const label = [element('span', `${item.slot}. ${SLOT_NAMES[item.slot]}`), element('span', note, 'tab-score')];
       const step = element('li', undefined, `tab ${state}`);
-      step.append(element('span', `${item.slot}. ${SLOT_NAMES[item.slot]}`), element('span', note, 'tab-score'));
-      if (state === 'current') step.setAttribute('aria-current', 'step');
+
+      // Once the whole run is finished, each step becomes a button for looking back at that curve.
+      if (allDone) {
+        const button = element('button', undefined, 'tab-button');
+        button.type = 'button';
+        button.append(...label);
+        button.setAttribute('aria-label', `Look back at the ${SLOT_NAMES[item.slot].toLowerCase()} curve`);
+        button.addEventListener('click', () => lookBack(item));
+        if (!summaryOpen && item === round) step.classList.add('viewing');
+        step.append(button);
+      } else {
+        step.append(...label);
+        if (state === 'current') step.setAttribute('aria-current', 'step');
+      }
       list.append(step);
     });
+  }
+
+  // Shows a finished curve again: the real curve, the last go and the score.
+  function lookBack(item) {
+    round = item;
+    summaryOpen = false;
+    find('.layout').classList.remove('ended');
+    find('#summary').hidden = true;
+    message('');
+    showRound();
   }
 
   function showRound() {
@@ -236,7 +265,9 @@ async function todayPage() {
       find('#result-formula').textContent = result.formula;
 
       const more = rounds.some((item) => !item.result);
-      find('#next-curve').textContent = more ? 'Next curve' : "See today's result";
+      let nextLabel = 'Next curve';
+      if (!more) nextLabel = summarySeen ? "Back to today's result" : "See today's result";
+      find('#next-curve').textContent = nextLabel;
     }
     showProgress();
     showTotal();
@@ -273,6 +304,9 @@ async function todayPage() {
       }));
     }
 
+    summaryOpen = true;
+    summarySeen = true;
+    showProgress();
     find('.layout').classList.add('ended');
     find('#summary').hidden = false;
     countUp(find('#summary-total'), 0, totalScore());
@@ -475,6 +509,96 @@ async function todayPage() {
   if (rounds.every((item) => item.result)) showSummary();
 }
 
+/* The history page */
+
+const STATUS_NAMES = { solved: 'Cracked', failed: 'Out of goes' };
+
+// Writes a date such as 2026-11-13 as "13 Nov 2026".
+function shortDate(date) {
+  return new Date(`${date}T00:00`).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// Adds a row to a table. The first value becomes the row heading, and numbers line up on the right.
+function addRow(body, values) {
+  const row = document.createElement('tr');
+  values.forEach((value, index) => {
+    const cell = document.createElement(index === 0 ? 'th' : 'td');
+    if (index === 0) cell.scope = 'row';
+    if (typeof value === 'number') cell.className = 'number';
+    cell.textContent = value;
+    row.append(cell);
+  });
+  body.append(row);
+}
+
+// Shows the page's content to a logged-in player, or a note asking a guest to log in.
+function membersOnly() {
+  find('#guest').hidden = Boolean(currentUser);
+  find('#content').hidden = !currentUser;
+  return Boolean(currentUser);
+}
+
+async function historyPage() {
+  if (!membersOnly()) return;
+  const form = find('#filters');
+
+  const families = await request('/api/families');
+  families.forEach((family) => find('#family').add(new Option(family.name, family.id)));
+
+  // Asks the server for the list again whenever a filter or the order changes.
+  async function load() {
+    const choices = new URLSearchParams(new FormData(form));
+    const rows = await request(`/api/history?${choices}`);
+
+    const body = find('#history-rows');
+    body.replaceChildren();
+    rows.forEach((row) => {
+      addRow(body, [
+        shortDate(row.date),
+        SLOT_NAMES[row.slot],
+        `${row.familyName}: ${row.formula}`,
+        STATUS_NAMES[row.status],
+        row.goes,
+        row.hints,
+        row.score
+      ]);
+    });
+    find('#count').textContent = rows.length === 0
+      ? 'Nothing matches. Finish a curve, or loosen the filters.'
+      : `${rows.length} ${rows.length === 1 ? 'curve' : 'curves'}`;
+  }
+
+  form.addEventListener('change', () => load().catch((error) => message(error.message)));
+  await load();
+}
+
+/* The stats page */
+
+async function statsPage() {
+  if (!membersOnly()) return;
+  const stats = await request('/api/stats');
+  const totals = stats.totals;
+  const days = (count) => (count === 1 ? '1 day' : `${count} days`);
+
+  find('#stat-points').textContent = totals.points;
+  find('#stat-days').textContent = totals.days;
+  find('#stat-streak').textContent = days(stats.streak.current);
+  find('#stat-best-streak').textContent = days(stats.streak.best);
+  find('#stat-cracked').textContent = `${totals.cracked} of ${totals.played}`;
+  find('#stat-average').textContent = totals.average_score ?? '–';
+  find('#stat-goes').textContent = totals.average_goes ?? '–';
+  find('#stat-best-day').textContent = stats.bestDay
+    ? `${stats.bestDay.points} on ${shortDate(stats.bestDay.date)}`
+    : '–';
+
+  stats.byDifficulty.forEach((row) => {
+    addRow(find('#difficulty-rows'), [SLOT_NAMES[row.slot], row.played, row.cracked, row.average_score, row.average_goes]);
+  });
+  stats.byFamily.forEach((row) => {
+    addRow(find('#family-rows'), [row.name, row.played, row.cracked, row.average_score, row.best_score]);
+  });
+}
+
 /* The account page */
 
 // Sends a form to the server and shows the error if it is refused.
@@ -543,7 +667,7 @@ async function savePendingRun() {
 
 /* Starting the right page */
 
-const pages = { today: todayPage, account: accountPage };
+const pages = { today: todayPage, account: accountPage, history: historyPage, stats: statsPage };
 
 async function start() {
   const me = await request('/api/me');
