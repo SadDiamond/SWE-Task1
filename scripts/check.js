@@ -133,13 +133,12 @@ assert.strictEqual(rules.pieces(steep), 1);
 assert.strictEqual(rules.pieces(hyperbola), 2, 'a hyperbola is in two pieces');
 assert.strictEqual(rules.pieces({ family_id: EXPONENTIAL, a: 1, b: 1, c: 0 }), 1, 'a flat asymptote does not split a curve');
 
-// Stars: fewer goes is better, each hint costs one, unsolved gets none.
-assert.strictEqual(rules.starsFor(true, 1, 0), 3);
-assert.strictEqual(rules.starsFor(true, 4, 0), 2);
-assert.strictEqual(rules.starsFor(true, 5, 0), 1);
-assert.strictEqual(rules.starsFor(true, 1, 1), 2);
-assert.strictEqual(rules.starsFor(true, 5, 3), 0, 'stars never go below zero');
-assert.strictEqual(rules.starsFor(false, 5, 0), 0);
+// Scores out of 1000: accuracy sets the start, extra goes and hints take points off.
+assert.strictEqual(rules.scoreFor(100, 1, 0), 1000, 'a perfect first go with no hints is full marks');
+assert.strictEqual(rules.scoreFor(92, 1, 0), 920);
+assert.strictEqual(rules.scoreFor(92, 3, 0), 720, 'each extra go costs 100');
+assert.strictEqual(rules.scoreFor(92, 3, 2), 420, 'each hint costs 150');
+assert.strictEqual(rules.scoreFor(40, 5, 3), 0, 'a score never goes below zero');
 
 // A year of curves: three a day, easy to hard, valid numbers, enough on screen, same every time.
 const seen = new Set();

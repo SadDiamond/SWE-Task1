@@ -36,6 +36,9 @@ app.get('/api/today', route(async (_request, response) => {
     limit: rules.LIMIT,
     maxGoes: rules.MAX_GOES,
     maxHints: rules.MAX_HINTS,
+    topScore: rules.TOP_SCORE,
+    goPenalty: rules.GO_PENALTY,
+    hintPenalty: rules.HINT_PENALTY,
     shortestStroke: rules.SHORTEST_STROKE,
     mostPoints: rules.MOST_POINTS,
     curves: machines.map((machine) => ({
@@ -87,7 +90,7 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
   // The real curve is only sent once the round is over.
   if (finished) {
     reply.curve = rules.visibleCurve(machine);
-    reply.stars = rules.starsFor(result.solved, go, hints);
+    reply.score = rules.scoreFor(result.accuracy, go, hints);
     reply.familyName = machine.family_name;
     reply.formula = rules.describe(machine);
     reply.asymptotes = rules.asymptotes(machine);

@@ -252,7 +252,7 @@ function validDrawing(strokes) {
   return points <= MOST_POINTS;
 }
 
-// How many hints a player can ask for on one curve. Each one costs a star.
+// How many hints a player can ask for on one curve. Each one costs points.
 const MAX_HINTS = 3;
 
 // The hint dots for a curve: spots that are on it, spread evenly along the visible part.
@@ -277,14 +277,17 @@ function pieces(machine) {
   return 1 + asymptotes(machine).filter((line) => line.kind === 'vertical').length;
 }
 
-// Stars for a finished round: fewer goes is better, each hint used takes one away,
-// and an unsolved curve gets none.
-function starsFor(solved, goes, hints) {
-  if (!solved) return 0;
-  let stars = 1;
-  if (goes <= 2) stars = 3;
-  else if (goes <= 4) stars = 2;
-  return Math.max(0, stars - hints);
+// Every curve is scored out of 1000.
+const TOP_SCORE = 1000;
+// Points lost for each go after the first, and for each hint used.
+const GO_PENALTY = 100;
+const HINT_PENALTY = 150;
+
+// The score for a finished curve. Accuracy sets the starting amount (100% is 1000),
+// then extra goes and hints take points away. It never drops below zero.
+function scoreFor(accuracy, goes, hints) {
+  const score = accuracy * (TOP_SCORE / 100) - GO_PENALTY * (goes - 1) - HINT_PENALTY * hints;
+  return Math.max(0, Math.round(score));
 }
 
 /* Writing the formula out */
@@ -465,8 +468,8 @@ async function fillHistory() {
 }
 
 module.exports = {
-  COLUMNS, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, SHORTEST_STROKE, STEPS_PER_UNIT,
+  COLUMNS, GO_PENALTY, HINT_PENALTY, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, TOP_SCORE, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
-  hintDots, pieces, starsFor, todayDate, validDrawing, visibleCurve, wholeCurve
+  hintDots, pieces, scoreFor, todayDate, validDrawing, visibleCurve, wholeCurve
 };
