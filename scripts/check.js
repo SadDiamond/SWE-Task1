@@ -1,9 +1,10 @@
 // Self-check for the curve rules. Run with: npm test
 const assert = require('node:assert');
+const katex = require('katex');
 const rules = require('../src/rules');
 
 const {
-  COLUMNS, LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED
+  COLUMNS, LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, CUBE_ROOT, EXPONENTIAL, HYPERBOLA, SLANTED
 } = rules;
 
 // Outputs for known inputs.
@@ -13,27 +14,31 @@ assert.strictEqual(rules.evaluate({ family_id: V_SHAPE, a: 2, b: 0, c: 0 }, -5),
 assert.strictEqual(rules.evaluate({ family_id: CUBIC, a: 2, b: 1, c: 4 }, 3), -3);
 assert.strictEqual(rules.evaluate({ family_id: CUBIC, a: 2, b: 1, c: 4 }, 5), 0, 'a cubic crosses zero at b + c');
 assert.strictEqual(rules.evaluate({ family_id: WAVE, a: 3, b: 4, c: 1 }, 2), 4);
-assert.strictEqual(rules.evaluate({ family_id: ROOT, a: 2, b: -4, c: 0 }, 0), 4);
-assert.strictEqual(rules.evaluate({ family_id: ROOT, a: 2, b: -4, c: 0 }, -5), null, 'no square root before the start');
+assert.strictEqual(rules.evaluate({ family_id: CUBE_ROOT, a: 2, b: -4, c: 0 }, 4), 4);
+assert.strictEqual(rules.evaluate({ family_id: CUBE_ROOT, a: 2, b: -4, c: 0 }, -12), -4, 'a cube root exists on both sides');
 assert.strictEqual(rules.evaluate({ family_id: EXPONENTIAL, a: 1, b: 2, c: -1 }, 4), 3);
 assert.strictEqual(rules.evaluate({ family_id: HYPERBOLA, a: 6, b: 2, c: 1 }, 5), 3);
 assert.strictEqual(rules.evaluate({ family_id: HYPERBOLA, a: 6, b: 2, c: 1 }, 2), null, 'nothing exists on the asymptote');
 assert.strictEqual(rules.evaluate({ family_id: SLANTED, a: 4, b: 0, c: 2 }, 2), 4);
 
-// Formulas written out.
-assert.strictEqual(rules.describe({ family_id: LINE, a: 3, b: -2, c: 0 }), 'y = 1.5x − 2');
-assert.strictEqual(rules.describe({ family_id: LINE, a: -2, b: 0, c: 0 }), 'y = −x');
-assert.strictEqual(rules.describe({ family_id: PARABOLA, a: 2, b: 3, c: -4 }), 'y = 0.5(x − 3)² − 4');
-assert.strictEqual(rules.describe({ family_id: PARABOLA, a: 4, b: 0, c: 0 }), 'y = x²');
-assert.strictEqual(rules.describe({ family_id: CUBIC, a: 2, b: 1, c: 4 }), 'y = 0.125(x + 3)(x − 1)(x − 5)');
-assert.strictEqual(rules.describe({ family_id: CUBIC, a: -16, b: 0, c: 4 }), 'y = −(x + 4)x(x − 4)');
-assert.strictEqual(rules.describe({ family_id: V_SHAPE, a: -2, b: -1, c: 5 }), 'y = −|x + 1| + 5');
-assert.strictEqual(rules.describe({ family_id: WAVE, a: 3, b: 4, c: 1 }), 'y = 3 sin(πx ÷ 4) + 1');
-assert.strictEqual(rules.describe({ family_id: ROOT, a: 2, b: -3, c: -1 }), 'y = 2√(x + 3) − 1');
-assert.strictEqual(rules.describe({ family_id: EXPONENTIAL, a: 2, b: 3, c: -4 }), 'y = 2 × 2^(x ÷ 3) − 4');
-assert.strictEqual(rules.describe({ family_id: EXPONENTIAL, a: -1, b: 1, c: 0 }), 'y = −2^x');
-assert.strictEqual(rules.describe({ family_id: HYPERBOLA, a: 3, b: 2, c: 1 }), 'y = 3 ÷ (x − 2) + 1');
-assert.strictEqual(rules.describe({ family_id: SLANTED, a: -4, b: 1, c: 1 }), 'y = 0.5x − 4 ÷ (x − 1)');
+// Formulas written out in LaTeX.
+const formula = (familyId, a, b, c) => rules.describe({ family_id: familyId, a, b, c });
+assert.strictEqual(formula(LINE, 3, -2, 0), 'y = \\frac{3}{2}x - 2');
+assert.strictEqual(formula(LINE, -2, 0, 0), 'y = -x');
+assert.strictEqual(formula(LINE, 4, 1, 0), 'y = 2x + 1');
+assert.strictEqual(formula(PARABOLA, 2, 3, -4), 'y = \\frac{1}{2}(x - 3)^2 - 4');
+assert.strictEqual(formula(PARABOLA, 4, 0, 0), 'y = x^2');
+assert.strictEqual(formula(V_SHAPE, -2, -1, 5), 'y = -\\left|x + 1\\right| + 5');
+assert.strictEqual(formula(CUBIC, 2, 1, 4), 'y = \\frac{1}{8}(x + 3)(x - 1)(x - 5)');
+assert.strictEqual(formula(CUBIC, -16, 0, 4), 'y = -(x + 4)x(x - 4)');
+assert.strictEqual(formula(WAVE, 3, 4, 1), 'y = 3\\sin\\left(\\frac{\\pi x}{4}\\right) + 1');
+assert.strictEqual(formula(CUBE_ROOT, 2, -3, -1), 'y = 2\\sqrt[3]{x + 3} - 1');
+assert.strictEqual(formula(EXPONENTIAL, 2, 3, -4), 'y = 2 \\times 2^{\\frac{x}{3}} - 4');
+assert.strictEqual(formula(EXPONENTIAL, -1, 1, 0), 'y = -2^{x}');
+assert.strictEqual(formula(EXPONENTIAL, 1, -2, 3), 'y = 2^{-\\frac{x}{2}} + 3');
+assert.strictEqual(formula(HYPERBOLA, 3, 2, 1), 'y = \\frac{3}{x - 2} + 1');
+assert.strictEqual(formula(HYPERBOLA, -3, 0, 0), 'y = -\\frac{3}{x}');
+assert.strictEqual(formula(SLANTED, -4, 1, 1), 'y = \\frac{1}{2}x - \\frac{4}{x - 1}');
 
 // The visible curve: one value for each column, null where the curve is off the graph.
 const steep = { family_id: LINE, a: 6, b: 0, c: 0 };
@@ -110,7 +115,7 @@ for (const slot of [1, 2, 3]) {
 // Ink: enough to draw the curve with some to spare, but not enough to scribble over the graph.
 assert.strictEqual(rules.inkUsed([[[0, 0], [3, 4]], [[0, 0], [0, 2]]]), 7);
 assert.strictEqual(rules.inkFor(gentle), 34, 'a gentle line 22.4 long gets half as much again');
-assert.strictEqual(rules.inkFor({ family_id: ROOT, a: 1, b: 8, c: 0 }), 30, 'a short visible curve still gets the smallest amount');
+assert.strictEqual(rules.inkFor({ family_id: PARABOLA, a: 4, b: 0, c: 9 }), 30, 'a short visible curve still gets the smallest amount');
 for (const slot of [1, 2, 3]) {
   const machine = rules.makeMachine('2026-11-13', slot);
   const ownLength = rules.inkUsed(traced(rules.visibleCurve(machine)));
@@ -156,11 +161,11 @@ const waveOnLine = {
   family_id: LINE, a: 1, b: 2, c: 0, extra_family_id: WAVE, extra_a: 2, extra_b: 4, extra_c: 0
 };
 assert.strictEqual(rules.evaluate(waveOnLine, 2), 5, 'the two parts are added: (0.5 x 2 + 2) + 2 sin(90 degrees)');
-assert.strictEqual(rules.describe(waveOnLine), 'y = 0.5x + 2 + 2 sin(πx ÷ 4)');
+assert.strictEqual(rules.describe(waveOnLine), 'y = \\frac{1}{2}x + 2 + 2\\sin\\left(\\frac{\\pi x}{4}\\right)');
 const tiltedV = {
   family_id: V_SHAPE, a: 2, b: 1, c: -3, extra_family_id: LINE, extra_a: -1, extra_b: 0, extra_c: 0
 };
-assert.strictEqual(rules.describe(tiltedV), 'y = |x − 1| − 3 − 0.5x', 'a second part with a minus sign is taken away');
+assert.strictEqual(rules.describe(tiltedV), 'y = \\left|x - 1\\right| - 3 - \\frac{1}{2}x', 'a second part with a minus sign is taken away');
 const trident = {
   family_id: HYPERBOLA, a: 3, b: 0, c: 0, extra_family_id: PARABOLA, extra_a: 1, extra_b: 0, extra_c: 0
 };
@@ -188,6 +193,11 @@ for (let day = 0; day < 365; day += 1) {
     assert.ok(visible >= COLUMNS * 0.5, `the curve is visible across at least half the graph on ${date}`);
     assert.ok(!rules.describe(machine).includes('NaN') && !rules.describe(machine).includes('undefined'));
     assert.ok(rules.inkFor(machine) >= 30 && rules.hintDots(machine).length === 3);
+    // Every curve runs right across the graph. The only gap allowed is one column at a vertical asymptote.
+    const gaps = rules.wholeCurve(machine).filter((output) => output === null).length;
+    assert.ok(gaps <= 1, `the curve on ${date} must not start or stop partway across`);
+    // The formula must be LaTeX that KaTeX accepts.
+    assert.doesNotThrow(() => katex.renderToString(rules.describe(machine), { output: 'mathml' }));
     seen.add(machine.family_id);
     if (machine.extra_family_id) {
       mixes += 1;

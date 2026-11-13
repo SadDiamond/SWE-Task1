@@ -37,7 +37,7 @@ const PARABOLA = 2;
 const V_SHAPE = 3;
 const CUBIC = 4;
 const WAVE = 5;
-const ROOT = 6;
+const CUBE_ROOT = 6;
 const EXPONENTIAL = 7;
 const HYPERBOLA = 8;
 const SLANTED = 9;
@@ -62,8 +62,8 @@ function partValue(familyId, a, b, c, x) {
       return (a / 16) * (x - b + c) * (x - b) * (x - b - c);
     case WAVE:
       return a * Math.sin((Math.PI * x) / b) + c;
-    case ROOT:
-      return x < b ? null : a * Math.sqrt(x - b) + c;
+    case CUBE_ROOT:
+      return a * Math.cbrt(x - b) + c;
     case EXPONENTIAL:
       return a * 2 ** (x / b) + c;
     case HYPERBOLA:
@@ -332,73 +332,79 @@ function scoreFor(accuracy, goes, hints) {
   return Math.max(0, Math.round(score));
 }
 
-/* Writing the formula out */
+/* Writing the formula out in LaTeX */
 
-// Turns -0.5 into "−0.5" and drops pointless decimals.
-function text(number) {
-  return String(Math.round(number * 10000) / 10000).replace('-', '−');
+// The largest whole number that divides both a and b.
+function commonFactor(a, b) {
+  return b === 0 ? Math.abs(a) : commonFactor(b, a % b);
 }
 
-// A multiplier in front of something: 1 disappears, -1 becomes just a minus sign.
-function times(number) {
-  if (number === 1) return '';
-  if (number === -1) return '−';
-  return text(number);
+// A multiplier in front of something, written as a fraction in its simplest form.
+// 1 disappears, -1 becomes just a minus sign, and 6 over 4 becomes \frac{3}{2}.
+function multiplier(top, bottom) {
+  const factor = commonFactor(top, bottom);
+  const sign = top < 0 ? '-' : '';
+  const above = Math.abs(top) / factor;
+  const below = bottom / factor;
+
+  if (below === 1) return above === 1 ? sign : `${sign}${above}`;
+  return `${sign}\\frac{${above}}{${below}}`;
 }
 
-// "x − 2", "x + 3" or just "x".
+// "x - 2", "x + 3" or just "x".
 function shifted(amount) {
   if (amount === 0) return 'x';
-  return amount > 0 ? `x − ${amount}` : `x + ${-amount}`;
+  return amount > 0 ? `x - ${amount}` : `x + ${-amount}`;
 }
 
-// " + 3", " − 3" or nothing, for the end of a formula.
+// " + 3", " - 3" or nothing, for the end of a formula.
 function plus(number) {
   if (number === 0) return '';
-  return number > 0 ? ` + ${text(number)}` : ` − ${text(-number)}`;
+  return number > 0 ? ` + ${number}` : ` - ${-number}`;
 }
 
 function bracket(amount) {
   return amount === 0 ? 'x' : `(${shifted(amount)})`;
 }
 
-// One part of a curve written out, without the "y =" in front.
+// One part of a curve written in LaTeX, without the "y =" in front.
 function expression(familyId, a, b, c) {
   switch (familyId) {
     case LINE:
-      return `${times(a / 2)}x${plus(b)}`;
+      return `${multiplier(a, 2)}x${plus(b)}`;
     case PARABOLA:
-      return `${times(a / 4)}${bracket(b)}²${plus(c)}`;
+      return `${multiplier(a, 4)}${bracket(b)}^2${plus(c)}`;
     case V_SHAPE:
-      return `${times(a / 2)}|${shifted(b)}|${plus(c)}`;
+      return `${multiplier(a, 2)}\\left|${shifted(b)}\\right|${plus(c)}`;
     case CUBIC:
-      return `${times(a / 16)}${bracket(b - c)}${bracket(b)}${bracket(b + c)}`;
+      return `${multiplier(a, 16)}${bracket(b - c)}${bracket(b)}${bracket(b + c)}`;
     case WAVE:
-      return `${a === 1 ? '' : `${a} `}sin(πx ÷ ${b})${plus(c)}`;
-    case ROOT:
-      return `${times(a)}√(${shifted(b)})${plus(c)}`;
+      return `${multiplier(a, 1)}\\sin\\left(\\frac{\\pi x}{${b}}\\right)${plus(c)}`;
+    case CUBE_ROOT:
+      return `${multiplier(a, 1)}\\sqrt[3]{${shifted(b)}}${plus(c)}`;
     case EXPONENTIAL: {
-      let power = `2^(x ÷ ${text(b)})`;
-      if (b === 1) power = '2^x';
-      if (b === -1) power = '2^(−x)';
-      const front = Math.abs(a) === 1 ? times(a) : `${text(a)} × `;
+      // The power is x divided by b: 2^x, 2^{-x}, 2^{\frac{x}{3}} or 2^{-\frac{x}{3}}.
+      const size = Math.abs(b) === 1 ? 'x' : `\\frac{x}{${Math.abs(b)}}`;
+      const power = `2^{${b < 0 ? '-' : ''}${size}}`;
+      const front = Math.abs(a) === 1 ? multiplier(a, 1) : `${a} \\times `;
       return `${front}${power}${plus(c)}`;
     }
     case HYPERBOLA:
-      return `${text(a)} ÷ ${bracket(b)}${plus(c)}`;
+      return `${a < 0 ? '-' : ''}\\frac{${Math.abs(a)}}{${shifted(b)}}${plus(c)}`;
     default:
-      return `${times(c / 2)}x ${a > 0 ? '+' : '−'} ${Math.abs(a)} ÷ ${bracket(b)}`;
+      // Slanted hyperbola
+      return `${multiplier(c, 2)}x ${a > 0 ? '+' : '-'} \\frac{${Math.abs(a)}}{${shifted(b)}}`;
   }
 }
 
-// The whole formula, e.g. "y = 0.5x + 2 sin(πx ÷ 3)".
+// The whole formula in LaTeX, e.g. "y = \frac{1}{2}x + 2\sin\left(\frac{\pi x}{3}\right)".
 function describe(machine) {
   const main = expression(machine.family_id, machine.a, machine.b, machine.c);
   if (!machine.extra_family_id) return `y = ${main}`;
 
   const extra = expression(machine.extra_family_id, machine.extra_a, machine.extra_b, machine.extra_c);
   // A second part that starts with a minus sign is taken away instead of added.
-  return extra.startsWith('−') ? `y = ${main} − ${extra.slice(1)}` : `y = ${main} + ${extra}`;
+  return extra.startsWith('-') ? `y = ${main} - ${extra.slice(1)}` : `y = ${main} + ${extra}`;
 }
 
 // The lines a curve gets close to but never touches. Shown only when the answer is revealed.
@@ -465,8 +471,8 @@ function randomMachine(next, familyId) {
       return { a: nonZero(-3, 3), b: between(-3, 3), c: pick([4, 5]) };
     case WAVE:
       return { a: between(1, 5), b: between(2, 5), c: between(-4, 4) };
-    case ROOT:
-      return { a: nonZero(-3, 3), b: between(-9, 0), c: between(-6, 6) };
+    case CUBE_ROOT:
+      return { a: nonZero(-3, 3), b: between(-5, 5), c: between(-5, 5) };
     case EXPONENTIAL:
       return { a: nonZero(-3, 3), b: nonZero(-3, 3), c: between(-6, 6) };
     case HYPERBOLA:
@@ -480,8 +486,8 @@ function randomMachine(next, familyId) {
 // A recipe is a main kind on its own, or a main kind with a second kind added to it.
 const RECIPES_FOR_SLOT = {
   1: [[LINE], [PARABOLA], [V_SHAPE]],
-  2: [[CUBIC], [WAVE], [ROOT], [EXPONENTIAL],
-    [LINE, WAVE], [PARABOLA, WAVE], [V_SHAPE, LINE], [ROOT, LINE]],
+  2: [[CUBIC], [WAVE], [CUBE_ROOT], [EXPONENTIAL],
+    [LINE, WAVE], [PARABOLA, WAVE], [V_SHAPE, LINE], [CUBE_ROOT, LINE]],
   3: [[HYPERBOLA], [SLANTED],
     [HYPERBOLA, PARABOLA], [HYPERBOLA, WAVE], [HYPERBOLA, V_SHAPE], [CUBIC, WAVE], [EXPONENTIAL, LINE]]
 };
@@ -572,7 +578,7 @@ async function fillHistory() {
 
 module.exports = {
   COLUMNS, GO_PENALTY, HINT_PENALTY, MACHINE_SELECT, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, TOP_SCORE, SHORTEST_STROKE, STEPS_PER_UNIT,
-  LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
+  LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, CUBE_ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
   hintDots, inkFor, inkUsed, kindName, pieces, scoreFor, todayDate, validDrawing, visibleCurve, wholeCurve
 };

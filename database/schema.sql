@@ -112,7 +112,7 @@ INSERT OR IGNORE INTO families (id, name, difficulty, description) VALUES
   (3, 'V shape', 1, 'Two straight lines meeting at a sharp corner.'),
   (4, 'Cubic', 2, 'A curve with one hill and one dip, heading off in opposite directions at each end.'),
   (5, 'Wave', 2, 'Rises and falls in a repeating pattern, like ripples.'),
-  (6, 'Square root', 2, 'Starts at a point, rises quickly, then levels off. Nothing exists before the start.'),
+  (6, 'Cube root', 2, 'A sideways S: steep in the middle and flattening out towards both sides.'),
   (7, 'Exponential', 2, 'Almost flat on one side, then shoots away faster and faster on the other.'),
   (8, 'Hyperbola', 3, 'Two separate pieces that hug a vertical line and a flat line without touching them.'),
   (9, 'Slanted hyperbola', 3, 'Two pieces that hug a vertical line and a sloping line.');
