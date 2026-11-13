@@ -151,8 +151,32 @@ assert.strictEqual(rules.scoreFor(92, 3, 0), 720, 'each extra go costs 100');
 assert.strictEqual(rules.scoreFor(92, 3, 2), 420, 'each hint costs 150');
 assert.strictEqual(rules.scoreFor(40, 5, 3), 0, 'a score never goes below zero');
 
+// Mixed curves: two kinds added together.
+const waveOnLine = {
+  family_id: LINE, a: 1, b: 2, c: 0, extra_family_id: WAVE, extra_a: 2, extra_b: 4, extra_c: 0
+};
+assert.strictEqual(rules.evaluate(waveOnLine, 2), 5, 'the two parts are added: (0.5 x 2 + 2) + 2 sin(90 degrees)');
+assert.strictEqual(rules.describe(waveOnLine), 'y = 0.5x + 2 + 2 sin(πx ÷ 4)');
+const tiltedV = {
+  family_id: V_SHAPE, a: 2, b: 1, c: -3, extra_family_id: LINE, extra_a: -1, extra_b: 0, extra_c: 0
+};
+assert.strictEqual(rules.describe(tiltedV), 'y = |x − 1| − 3 − 0.5x', 'a second part with a minus sign is taken away');
+const trident = {
+  family_id: HYPERBOLA, a: 3, b: 0, c: 0, extra_family_id: PARABOLA, extra_a: 1, extra_b: 0, extra_c: 0
+};
+assert.strictEqual(rules.evaluate(trident, 0), null, 'a mix does not exist where either part does not');
+assert.strictEqual(rules.pieces(trident), 2, 'a hyperbola mix is still in two pieces');
+assert.deepStrictEqual(rules.asymptotes(trident), [{ kind: 'vertical', input: 0 }], 'only the vertical asymptote is a straight line');
+const tiltedHyperbola = {
+  family_id: HYPERBOLA, a: 3, b: 1, c: 2, extra_family_id: LINE, extra_a: 2, extra_b: 0, extra_c: 0
+};
+assert.deepStrictEqual(rules.asymptotes(tiltedHyperbola)[1], { kind: 'sloped', slope: 1, start: 2 }, 'a line added on tilts the asymptote');
+assert.strictEqual(rules.kindName({ family_name: 'Hyperbola', extra_name: 'Parabola' }), 'Hyperbola + parabola');
+assert.strictEqual(rules.kindName({ family_name: 'Wave', extra_name: null }), 'Wave');
+
 // A year of curves: three a day, easy to hard, valid numbers, enough on screen, same every time.
 const seen = new Set();
+let mixes = 0;
 for (let day = 0; day < 365; day += 1) {
   const date = new Date(Date.UTC(2026, 0, 1 + day)).toISOString().slice(0, 10);
   for (const slot of [1, 2, 3]) {
@@ -163,11 +187,16 @@ for (let day = 0; day < 365; day += 1) {
     assert.ok(machine.a !== 0 && Math.abs(machine.a) <= 9 && Math.abs(machine.b) <= 9 && Math.abs(machine.c) <= 9);
     assert.ok(visible >= COLUMNS * 0.3, `enough of the curve is visible on ${date}`);
     assert.ok(!rules.describe(machine).includes('NaN') && !rules.describe(machine).includes('undefined'));
+    assert.ok(rules.inkFor(machine) >= 30 && rules.hintDots(machine).length === 3);
     seen.add(machine.family_id);
+    if (machine.extra_family_id) {
+      mixes += 1;
+      assert.ok(machine.extra_a !== 0 && Math.abs(machine.extra_a) <= 9, 'the second part has valid numbers');
+    }
   }
-  assert.ok([LINE, PARABOLA, V_SHAPE].includes(rules.makeMachine(date, 1).family_id), 'slot 1 is an easy family');
-  assert.ok([HYPERBOLA, SLANTED].includes(rules.makeMachine(date, 3).family_id), 'slot 3 is a hard family');
+  assert.strictEqual(rules.makeMachine(date, 1).extra_family_id, null, 'the easy curve is always a single kind');
 }
 assert.strictEqual(seen.size, 9, 'every family turns up during the year');
+assert.ok(mixes > 200 && mixes < 600, `a good share of medium and hard curves are mixes, got ${mixes}`);
 
 console.log('All rule checks passed.');

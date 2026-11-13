@@ -45,11 +45,10 @@ function inputFor(column) {
   return column / STEPS_PER_UNIT - LIMIT;
 }
 
-// Works out the curve's output for an input. Gives null where the curve does not exist.
-function evaluate(machine, x) {
-  const { a, b, c } = machine;
-
-  switch (machine.family_id) {
+// Works out one part of a curve for an input. Gives null where that part does not exist.
+// a, b and c are whole numbers; the divisions turn them into gentle slopes like 0.5 or 0.25.
+function partValue(familyId, a, b, c, x) {
+  switch (familyId) {
     case LINE:
       return (a / 2) * x + b;
     case PARABOLA:
@@ -71,6 +70,16 @@ function evaluate(machine, x) {
       // Slanted hyperbola
       return x === b ? null : (c / 2) * x + a / (x - b);
   }
+}
+
+// Works out the curve's output for an input. Gives null where the curve does not exist.
+// A curve is one kind on its own, or a mix: a main part with a second, gentler part added on.
+function evaluate(machine, x) {
+  const main = partValue(machine.family_id, machine.a, machine.b, machine.c, x);
+  if (main === null || !machine.extra_family_id) return main;
+
+  const extra = partValue(machine.extra_family_id, machine.extra_a, machine.extra_b, machine.extra_c, x);
+  return extra === null ? null : main + extra;
 }
 
 // The curve as a list with one output for each column.
@@ -351,49 +360,65 @@ function bracket(amount) {
   return amount === 0 ? 'x' : `(${shifted(amount)})`;
 }
 
-function describe(machine) {
-  const { a, b, c } = machine;
-
-  switch (machine.family_id) {
+// One part of a curve written out, without the "y =" in front.
+function expression(familyId, a, b, c) {
+  switch (familyId) {
     case LINE:
-      return `y = ${times(a / 2)}x${plus(b)}`;
+      return `${times(a / 2)}x${plus(b)}`;
     case PARABOLA:
-      return `y = ${times(a / 4)}${bracket(b)}²${plus(c)}`;
+      return `${times(a / 4)}${bracket(b)}²${plus(c)}`;
     case V_SHAPE:
-      return `y = ${times(a / 2)}|${shifted(b)}|${plus(c)}`;
+      return `${times(a / 2)}|${shifted(b)}|${plus(c)}`;
     case CUBIC:
-      return `y = ${times(a / 16)}${bracket(b - c)}${bracket(b)}${bracket(b + c)}`;
+      return `${times(a / 16)}${bracket(b - c)}${bracket(b)}${bracket(b + c)}`;
     case WAVE:
-      return `y = ${a === 1 ? '' : `${a} `}sin(πx ÷ ${b})${plus(c)}`;
+      return `${a === 1 ? '' : `${a} `}sin(πx ÷ ${b})${plus(c)}`;
     case ROOT:
-      return `y = ${times(a)}√(${shifted(b)})${plus(c)}`;
+      return `${times(a)}√(${shifted(b)})${plus(c)}`;
     case EXPONENTIAL: {
       let power = `2^(x ÷ ${text(b)})`;
       if (b === 1) power = '2^x';
       if (b === -1) power = '2^(−x)';
       const front = Math.abs(a) === 1 ? times(a) : `${text(a)} × `;
-      return `y = ${front}${power}${plus(c)}`;
+      return `${front}${power}${plus(c)}`;
     }
     case HYPERBOLA:
-      return `y = ${text(a)} ÷ ${bracket(b)}${plus(c)}`;
+      return `${text(a)} ÷ ${bracket(b)}${plus(c)}`;
     default:
-      return `y = ${times(c / 2)}x ${a > 0 ? '+' : '−'} ${Math.abs(a)} ÷ ${bracket(b)}`;
+      return `${times(c / 2)}x ${a > 0 ? '+' : '−'} ${Math.abs(a)} ÷ ${bracket(b)}`;
   }
+}
+
+// The whole formula, e.g. "y = 0.5x + 2 sin(πx ÷ 3)".
+function describe(machine) {
+  const main = expression(machine.family_id, machine.a, machine.b, machine.c);
+  if (!machine.extra_family_id) return `y = ${main}`;
+
+  const extra = expression(machine.extra_family_id, machine.extra_a, machine.extra_b, machine.extra_c);
+  // A second part that starts with a minus sign is taken away instead of added.
+  return extra.startsWith('−') ? `y = ${main} − ${extra.slice(1)}` : `y = ${main} + ${extra}`;
 }
 
 // The lines a curve gets close to but never touches. Shown only when the answer is revealed.
 function asymptotes(machine) {
   const { b, c } = machine;
-  if (machine.family_id === HYPERBOLA) {
-    return [{ kind: 'vertical', input: b }, { kind: 'sloped', slope: 0, start: c }];
+  const lines = [];
+  const hugsVertical = machine.family_id === HYPERBOLA || machine.family_id === SLANTED;
+  if (hugsVertical) lines.push({ kind: 'vertical', input: b });
+
+  // The other line a hyperbola or exponential settles towards. A straight line added on tilts it.
+  // With any other second part the curve no longer settles towards a straight line, so none is drawn.
+  let tilt = 0;
+  if (machine.extra_family_id === LINE) tilt = machine.extra_a / 2;
+  else if (machine.extra_family_id) return lines;
+
+  if (machine.family_id === HYPERBOLA || machine.family_id === EXPONENTIAL) {
+    lines.push({ kind: 'sloped', slope: tilt, start: c });
   }
   if (machine.family_id === SLANTED) {
-    return [{ kind: 'vertical', input: b }, { kind: 'sloped', slope: c / 2, start: 0 }];
+    lines.push({ kind: 'sloped', slope: c / 2 + tilt, start: 0 });
   }
-  if (machine.family_id === EXPONENTIAL) {
-    return [{ kind: 'sloped', slope: 0, start: c }];
-  }
-  return [];
+  return lines;
 }
 
 /* Making each day's curve */
@@ -449,27 +474,74 @@ function randomMachine(next, familyId) {
   }
 }
 
-// Which families belong to each of the day's three curves: easy, medium and hard.
-const FAMILIES_FOR_SLOT = {
-  1: [LINE, PARABOLA, V_SHAPE],
-  2: [CUBIC, WAVE, ROOT, EXPONENTIAL],
-  3: [HYPERBOLA, SLANTED]
+// The recipes for each of the day's three curves: easy, medium and hard.
+// A recipe is a main kind on its own, or a main kind with a second kind added to it.
+const RECIPES_FOR_SLOT = {
+  1: [[LINE], [PARABOLA], [V_SHAPE]],
+  2: [[CUBIC], [WAVE], [ROOT], [EXPONENTIAL],
+    [LINE, WAVE], [PARABOLA, WAVE], [V_SHAPE, LINE], [ROOT, LINE]],
+  3: [[HYPERBOLA], [SLANTED],
+    [HYPERBOLA, PARABOLA], [HYPERBOLA, WAVE], [HYPERBOLA, V_SHAPE], [CUBIC, WAVE], [EXPONENTIAL, LINE]]
 };
+
+// Picks the numbers for a second part. They are kept small so the main shape still shows through,
+// and the part has no number added on the end, which keeps the formula tidy.
+function randomExtra(next, familyId) {
+  const between = (low, high) => low + next(high - low + 1);
+  const pick = (choices) => choices[next(choices.length)];
+
+  switch (familyId) {
+    case LINE:
+      return { extra_a: pick([-3, -2, -1, 1, 2, 3]), extra_b: 0, extra_c: 0 };
+    case WAVE:
+      return { extra_a: between(1, 2), extra_b: between(2, 4), extra_c: 0 };
+    case PARABOLA:
+      return { extra_a: pick([-1, 1]), extra_b: between(-3, 3), extra_c: 0 };
+    default:
+      // V shape
+      return { extra_a: pick([-2, -1, 1, 2]), extra_b: between(-3, 3), extra_c: 0 };
+  }
+}
 
 // Builds one of the three curves for a date. slot is 1 (easy), 2 (medium) or 3 (hard).
 function makeMachine(date, slot) {
   const next = numberMaker(dayNumber(date) * 7919 + slot * 104729);
-  const choices = FAMILIES_FOR_SLOT[slot];
-  const familyId = choices[next(choices.length)];
+  const recipes = RECIPES_FOR_SLOT[slot];
+  const [familyId, extraFamilyId] = recipes[next(recipes.length)];
 
   // Keep trying until a good part of the curve is actually on the graph.
   let machine;
   let onScreen = 0;
   while (onScreen < COLUMNS * 0.3) {
-    machine = { family_id: familyId, ...randomMachine(next, familyId) };
+    machine = {
+      family_id: familyId,
+      ...randomMachine(next, familyId),
+      extra_family_id: null,
+      extra_a: null,
+      extra_b: null,
+      extra_c: null
+    };
+    if (extraFamilyId) {
+      machine = { ...machine, extra_family_id: extraFamilyId, ...randomExtra(next, extraFamilyId) };
+    }
     onScreen = visibleCurve(machine).filter((output) => output !== null).length;
   }
   return machine;
+}
+
+// The SQL that reads curves with the names of their kinds. extra_name is empty for a single kind.
+const MACHINE_SELECT = `
+  SELECT machines.*, families.name AS family_name, families.difficulty, extras.name AS extra_name
+  FROM machines
+  INNER JOIN families ON families.id = machines.family_id
+  LEFT JOIN families AS extras ON extras.id = machines.extra_family_id
+`;
+
+// The name shown for a curve's kind, e.g. "Hyperbola" or "Straight line + wave".
+function kindName(machine) {
+  return machine.extra_name
+    ? `${machine.family_name} + ${machine.extra_name.toLowerCase()}`
+    : machine.family_name;
 }
 
 // Finds the three curves for a date, creating and saving them the first time they are asked for.
@@ -477,17 +549,14 @@ async function machinesFor(date) {
   for (const slot of [1, 2, 3]) {
     const made = makeMachine(date, slot);
     await run(
-      'INSERT OR IGNORE INTO machines (play_date, slot, family_id, a, b, c) VALUES (?, ?, ?, ?, ?, ?)',
-      [date, slot, made.family_id, made.a, made.b, made.c]
+      `INSERT OR IGNORE INTO machines
+         (play_date, slot, family_id, a, b, c, extra_family_id, extra_a, extra_b, extra_c)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [date, slot, made.family_id, made.a, made.b, made.c,
+        made.extra_family_id, made.extra_a, made.extra_b, made.extra_c]
     );
   }
-  return all(`
-    SELECT machines.*, families.name AS family_name, families.difficulty
-    FROM machines
-    INNER JOIN families ON families.id = machines.family_id
-    WHERE machines.play_date = ?
-    ORDER BY machines.slot
-  `, [date]);
+  return all(`${MACHINE_SELECT} WHERE machines.play_date = ? ORDER BY machines.slot`, [date]);
 }
 
 // Makes sure the last month of curves exists, so there are past days to play.
@@ -499,8 +568,8 @@ async function fillHistory() {
 }
 
 module.exports = {
-  COLUMNS, GO_PENALTY, HINT_PENALTY, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, TOP_SCORE, SHORTEST_STROKE, STEPS_PER_UNIT,
+  COLUMNS, GO_PENALTY, HINT_PENALTY, MACHINE_SELECT, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, TOP_SCORE, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
-  hintDots, inkFor, inkUsed, pieces, scoreFor, todayDate, validDrawing, visibleCurve, wholeCurve
+  hintDots, inkFor, inkUsed, kindName, pieces, scoreFor, todayDate, validDrawing, visibleCurve, wholeCurve
 };
