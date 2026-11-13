@@ -38,6 +38,14 @@
         <h2 id="graph-heading" class="visually-hidden">Graph</h2>
         <svg id="graph" class="graph" role="img" tabindex="0"
              aria-label="Graph from −10 to 10. Nothing checked yet." aria-describedby="keyboard-help"></svg>
+
+        <div id="ink" class="ink">
+          <span id="ink-label" class="ink-label">Ink</span>
+          <div class="ink-bar" role="progressbar" aria-labelledby="ink-label"
+               aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+            <div id="ink-level" class="ink-level"></div>
+          </div>
+        </div>
       </section>
 
       <div class="rest">
@@ -91,6 +99,7 @@
             <li><strong>A grey bar along the bottom</strong>: the curve is somewhere above, and you were nowhere near.</li>
             <li>Your last go stays on the graph, faded, so you can trace the good parts.</li>
             <li>You can draw any shape you like, including loops and straight up and down.</li>
+            <li><strong>Ink</strong>: each go has enough ink to draw the curve with some to spare. When the meter is empty the pen stops, so you cannot scribble over the whole graph.</li>
           </ul>
 
           <details>

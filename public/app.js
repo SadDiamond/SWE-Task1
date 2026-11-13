@@ -65,6 +65,7 @@ async function start() {
     ghost: null,        // the go before that
     missed: [],
     dots: [],           // hint dots the player has asked for
+    inkSpent: 0,        // how much line has been drawn in the go in progress
     goes: 0,
     result: null        // the server's final reply once the round is over
   }));
@@ -94,6 +95,14 @@ async function start() {
       asymptotes: round.result ? round.result.asymptotes : [],
       pen: pen.visible && !round.result ? pen : null
     }, game.limit);
+  }
+
+  // The ink meter: how much of this go's ink is left.
+  function showInk() {
+    const left = Math.max(0, Math.round((1 - round.inkSpent / round.ink) * 100));
+    find('#ink-level').style.width = `${left}%`;
+    find('.ink-bar').setAttribute('aria-valuenow', left);
+    find('#ink').hidden = Boolean(round.result);
   }
 
   // Redraws on the next screen refresh. Pointer events arrive faster than the screen updates,
@@ -222,6 +231,7 @@ async function start() {
       find('#next-curve').textContent = more ? 'Next curve' : "See today's result";
     }
     showProgress();
+    showInk();
     showGraph();
   }
 
@@ -315,9 +325,15 @@ async function start() {
     // The server refuses drawings with too many positions, so the pen stops adding them at the limit.
     const points = round.strokes.reduce((total, item) => total + item.length, 0);
     if (points >= game.mostPoints) return;
+    // When the ink for this go has run out, the pen stops leaving a line.
+    if (round.inkSpent + moved > round.ink) {
+      return message('Out of ink for this go. Lift your pen to have it marked.');
+    }
 
     stroke.push(rounded(position));
     strokeLength += moved;
+    round.inkSpent += moved;
+    showInk();
     showGraphSoon();
   }
 
@@ -326,6 +342,8 @@ async function start() {
     // A stroke the pen barely moved in is treated as a stray tap and undone.
     if (strokeLength < game.shortestStroke) {
       round.strokes.pop();
+      round.inkSpent -= strokeLength;
+      showInk();
       round.shown = beforeMarks.shown;
       round.ghost = beforeMarks.ghost;
       round.missed = beforeMarks.missed;
@@ -358,6 +376,7 @@ async function start() {
     }
     // Whether it worked or not, the next go starts from a clean drawing.
     marking.strokes = [];
+    marking.inkSpent = 0;
     waiting = false;
     showRound();
   }
