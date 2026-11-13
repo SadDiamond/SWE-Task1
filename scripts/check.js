@@ -185,7 +185,7 @@ for (let day = 0; day < 365; day += 1) {
 
     assert.deepStrictEqual(rules.makeMachine(date, slot), machine);
     assert.ok(machine.a !== 0 && Math.abs(machine.a) <= 9 && Math.abs(machine.b) <= 9 && Math.abs(machine.c) <= 9);
-    assert.ok(visible >= COLUMNS * 0.3, `enough of the curve is visible on ${date}`);
+    assert.ok(visible >= COLUMNS * 0.5, `the curve is visible across at least half the graph on ${date}`);
     assert.ok(!rules.describe(machine).includes('NaN') && !rules.describe(machine).includes('undefined'));
     assert.ok(rules.inkFor(machine) >= 30 && rules.hintDots(machine).length === 3);
     seen.add(machine.family_id);

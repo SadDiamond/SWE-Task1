@@ -36,7 +36,7 @@ function all(sql, parameters = []) {
 }
 
 // Raised whenever the tables change shape.
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 function exec(sql) {
   return new Promise((resolve, reject) => {

@@ -26,6 +26,8 @@ const NUDGE_SPACING = 1.5;
 // which is enough for one line right across the graph and a bit more.
 const INK_TO_SPARE = 1.5;
 const SMALLEST_INK = 30;
+// How much of the graph's width a curve must be visible across before it is used.
+const SHARE_ON_SCREEN = 0.5;
 // The most pen positions one go may contain, so a request cannot be made enormous.
 const MOST_POINTS = 3000;
 const DAYS_OF_HISTORY = 30;
@@ -509,10 +511,11 @@ function makeMachine(date, slot) {
   const recipes = RECIPES_FOR_SLOT[slot];
   const [familyId, extraFamilyId] = recipes[next(recipes.length)];
 
-  // Keep trying until a good part of the curve is actually on the graph.
+  // Keep trying until the curve crosses at least half the width of the graph.
+  // A curve that only shows in one corner is confusing, because most of the graph is empty.
   let machine;
   let onScreen = 0;
-  while (onScreen < COLUMNS * 0.3) {
+  while (onScreen < COLUMNS * SHARE_ON_SCREEN) {
     machine = {
       family_id: familyId,
       ...randomMachine(next, familyId),
