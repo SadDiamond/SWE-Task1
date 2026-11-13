@@ -366,20 +366,36 @@ async function start() {
 
   let drawing = false;
   graph.addEventListener('pointerdown', (event) => {
+    // Only the main button draws. A right-click opens a menu, and the page never hears that
+    // button being released, which would leave the pen stuck down.
+    if (event.button !== 0 || drawing) return;
     pen.visible = false;
     drawing = startStroke(graphPosition(graph, event, game.limit));
+    // Capturing the pointer keeps the stroke going if the pen slides off the edge of the graph.
     if (drawing) graph.setPointerCapture(event.pointerId);
   });
   graph.addEventListener('pointermove', (event) => {
-    if (drawing) extendStroke(graphPosition(graph, event, game.limit));
+    if (!drawing) return;
+    // If no button is held any more, the release was missed (for example it happened outside
+    // the browser window), so the stroke ends here instead of carrying on by itself.
+    if (event.buttons === 0) return liftPointer();
+    extendStroke(graphPosition(graph, event, game.limit));
   });
   function liftPointer() {
     if (!drawing) return;
     drawing = false;
     endStroke();
   }
+  // A stroke can end in several ways, and every one of them must lift the pen:
+  // releasing on the graph or anywhere else on the page, the browser cancelling the touch,
+  // the graph losing hold of the pointer, or the player switching to another window.
   graph.addEventListener('pointerup', liftPointer);
   graph.addEventListener('pointercancel', liftPointer);
+  graph.addEventListener('lostpointercapture', liftPointer);
+  window.addEventListener('pointerup', liftPointer);
+  window.addEventListener('blur', liftPointer);
+  // Stops the right-click menu opening over the graph in the middle of a game.
+  graph.addEventListener('contextmenu', (event) => event.preventDefault());
 
   /* Drawing with the keyboard */
 
