@@ -68,6 +68,7 @@ async function start() {
     shown: null,        // the last go once marked: { strokes, levels }
     ghost: null,        // the go before that
     missed: [],
+    dots: [],           // hint dots the player has asked for
     goes: 0,
     result: null        // the server's final reply once the round is over
   }));
@@ -153,6 +154,13 @@ async function start() {
     }
     find('#goes-text').textContent = `${goesText(game.maxGoes - round.goes)} left`;
 
+    const hintsLeft = game.maxHints - round.dots.length;
+    find('#hint').disabled = hintsLeft === 0;
+    find('#hint-text').textContent = hintsLeft === 0
+      ? 'No hints left for this curve.'
+      : `A hint shows one spot on the curve and costs a star. ${hintsLeft} left.`;
+    find('#hint-text').hidden = Boolean(round.result);
+
     find('#stroke-info').textContent = round.strokesPerGo === 1
       ? 'One stroke per go. Lift your pen and it is marked.'
       : `This curve is in ${round.strokesPerGo} pieces, so each go is ${round.strokesPerGo} strokes.`;
@@ -193,6 +201,18 @@ async function start() {
   find('#next-curve').addEventListener('click', () => {
     chooseRound(rounds.find((item) => !item.result));
     find('#tabs').scrollIntoView({ block: 'nearest' });
+  });
+
+  find('#hint').addEventListener('click', async () => {
+    if (waiting || round.result) return;
+    const asking = round;
+    try {
+      const hint = await send(`/api/machines/${asking.id}/hint`, { number: asking.dots.length + 1 });
+      asking.dots.push(hint.dot);
+      showRound();
+    } catch (error) {
+      message(error.message);
+    }
   });
 
   /* Strokes */
@@ -249,7 +269,9 @@ async function start() {
     waiting = true;
     const marking = round;
     try {
-      const result = await send(`/api/machines/${marking.id}/go`, { drawing: marking.strokes, go: marking.goes + 1 });
+      const result = await send(`/api/machines/${marking.id}/go`, {
+        drawing: marking.strokes, go: marking.goes + 1, hints: marking.dots.length
+      });
       marking.goes += 1;
       marking.shown = { strokes: marking.strokes, levels: result.levels, nudges: result.nudges };
       marking.missed = result.missed;

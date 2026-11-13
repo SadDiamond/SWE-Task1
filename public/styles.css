@@ -460,6 +460,11 @@ button.primary:hover:not(:disabled) {
   margin-top: 0.75rem;
 }
 
+/* The hint button sits at the far end of the row. */
+#hint {
+  margin-left: auto;
+}
+
 .goes {
   display: flex;
   gap: 0.375rem;
