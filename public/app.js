@@ -57,7 +57,6 @@ let currentUser = null;
 
 async function todayPage() {
   const game = await request('/api/today');
-  find('#guest-note').hidden = Boolean(currentUser);
   const graph = find('#graph');
 
   // Everything about one of the day's curves, so switching tabs loses nothing.
@@ -74,6 +73,7 @@ async function todayPage() {
       missed: saved && saved.last ? saved.last.missed : [],
       dots: saved ? saved.dots : [],                  // hint dots the player has asked for
       goes: saved ? saved.goes : 0,
+      history: [],                                    // every drawing sent for marking, in order
       result: saved ? saved.result : null             // the server's final reply once the round is over
     };
   });
@@ -263,6 +263,16 @@ async function todayPage() {
       rows.append(row);
     });
 
+    // A guest is offered the chance to keep this score. Their run is put aside in the browser
+    // so it can be sent to the server once they have logged in.
+    find('#save-prompt').hidden = Boolean(currentUser);
+    if (!currentUser) {
+      localStorage.setItem(PENDING_RUN, JSON.stringify({
+        date: game.date,
+        curves: rounds.map((item) => ({ id: item.id, hints: item.dots.length, goes: item.history }))
+      }));
+    }
+
     find('.layout').classList.add('ended');
     find('#summary').hidden = false;
     countUp(find('#summary-total'), 0, totalScore());
@@ -371,6 +381,7 @@ async function todayPage() {
         drawing: marking.strokes, go: marking.goes + 1, hints: marking.dots.length
       });
       marking.goes += 1;
+      marking.history.push(marking.strokes);
       marking.shown = { strokes: marking.strokes, levels: result.levels, nudges: result.nudges };
       marking.missed = result.missed;
       if (result.finished) {
@@ -503,6 +514,33 @@ async function accountPage() {
   });
 }
 
+/* Saving a guest's run after they log in */
+
+// The name the finished run is kept under in the browser's storage.
+const PENDING_RUN = 'pendingRun';
+
+// If this browser holds a guest run from today, it is sent to the server go by go.
+// The server marks and scores every drawing itself, exactly as if the player had been logged in.
+async function savePendingRun() {
+  const stored = localStorage.getItem(PENDING_RUN);
+  if (!stored) return;
+  localStorage.removeItem(PENDING_RUN);
+
+  const run = JSON.parse(stored);
+  const today = await request('/api/today');
+  // An old run, or an account that has already played today, is left alone.
+  if (run.date !== today.date || today.curves.some((curve) => curve.saved)) return;
+
+  for (const curve of run.curves) {
+    for (let hint = 0; hint < curve.hints; hint += 1) {
+      await send(`/api/machines/${curve.id}/hint`, {});
+    }
+    for (const drawing of curve.goes) {
+      await send(`/api/machines/${curve.id}/go`, { drawing });
+    }
+  }
+}
+
 /* Starting the right page */
 
 const pages = { today: todayPage, account: accountPage };
@@ -510,7 +548,10 @@ const pages = { today: todayPage, account: accountPage };
 async function start() {
   const me = await request('/api/me');
   currentUser = me.user;
-  if (currentUser) find('#account-link').textContent = currentUser.display_name;
+  if (currentUser) {
+    find('#account-link').textContent = currentUser.display_name;
+    await savePendingRun();
+  }
   await pages[document.body.dataset.page]();
 }
 

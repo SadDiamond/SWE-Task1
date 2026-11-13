@@ -31,11 +31,6 @@
           are way off.
         </p>
 
-        <p id="guest-note" class="guest-note" hidden>
-          You are playing as a guest, so today's score will not be kept.
-          <a href="/account.html">Log in or sign up</a> to save it.
-        </p>
-
         <ol id="tabs" class="tabs" aria-label="Today's three curves, played in order"></ol>
         <p id="stroke-info" class="stroke-info"></p>
       </div>
@@ -122,6 +117,10 @@
         <h2 id="summary-heading" tabindex="-1">Today's result</h2>
         <p class="summary-total"><span id="summary-total">0</span> <span class="score-top">points</span></p>
         <ol id="summary-rows" class="summary-rows"></ol>
+        <p id="save-prompt" class="save-prompt" hidden>
+          <a href="/account.html" class="button primary">Log in to save this score</a>
+          <span class="help">No account yet? You can sign up on the same page. Your run will be saved when you do.</span>
+        </p>
         <button type="button" id="copy-result">Copy result</button>
         <p id="copy-status" class="help" role="status" aria-live="polite"></p>
         <p>That is all three for today. Come back tomorrow for new ones.</p>
