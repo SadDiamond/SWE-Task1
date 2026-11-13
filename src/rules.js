@@ -22,6 +22,10 @@ const REACH = 30;
 // Nudges appear on parts of a drawing at this level or worse, one for every so many units of line.
 const NUDGE_FROM_LEVEL = 3;
 const NUDGE_SPACING = 1.5;
+// The pen gets the curve's length times this much ink, and never less than SMALLEST_INK,
+// which is enough for one line right across the graph and a bit more.
+const INK_TO_SPARE = 1.5;
+const SMALLEST_INK = 30;
 // The most pen positions one go may contain, so a request cannot be made enormous.
 const MOST_POINTS = 3000;
 const DAYS_OF_HISTORY = 30;
@@ -271,6 +275,33 @@ function hintDots(machine) {
   return [dots[1], dots[0], dots[2]];
 }
 
+// How much ink the pen has for one go on this curve, in graph units of line.
+// It is the length of the visible curve with some to spare, so the curve can be drawn in full
+// but the whole graph cannot be scribbled over to make the colours give the answer away.
+function inkFor(machine) {
+  const visible = visibleCurve(machine);
+  let length = 0;
+  for (let column = 1; column < COLUMNS; column += 1) {
+    const here = visible[column];
+    const before = visible[column - 1];
+    if (here !== null && before !== null && Math.abs(here - before) <= BIGGEST_STEP) {
+      length += Math.hypot(1 / STEPS_PER_UNIT, here - before);
+    }
+  }
+  return Math.round(Math.max(SMALLEST_INK, length * INK_TO_SPARE));
+}
+
+// The total length of line in a drawing.
+function inkUsed(strokes) {
+  let length = 0;
+  for (const stroke of strokes) {
+    for (let index = 1; index < stroke.length; index += 1) {
+      length += Math.hypot(stroke[index][0] - stroke[index - 1][0], stroke[index][1] - stroke[index - 1][1]);
+    }
+  }
+  return length;
+}
+
 // How many separate pieces the curve is in: one more than its vertical asymptotes.
 // The player gets this many strokes in each go.
 function pieces(machine) {
@@ -471,5 +502,5 @@ module.exports = {
   COLUMNS, GO_PENALTY, HINT_PENALTY, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, TOP_SCORE, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
-  hintDots, pieces, scoreFor, todayDate, validDrawing, visibleCurve, wholeCurve
+  hintDots, inkFor, inkUsed, pieces, scoreFor, todayDate, validDrawing, visibleCurve, wholeCurve
 };

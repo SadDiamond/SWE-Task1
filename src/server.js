@@ -46,6 +46,8 @@ app.get('/api/today', route(async (_request, response) => {
       slot: machine.slot,
       // How many strokes make up one go. More than one means the curve has breaks in it.
       strokesPerGo: rules.pieces(machine),
+      // How much line the pen can draw in one go.
+      ink: rules.inkFor(machine),
       // Where the curve leaves the graph is shown from the start, so the first go is not a blind guess.
       exits: rules.exits(machine)
     }))
@@ -76,6 +78,11 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
   if (machines.length === 0) return response.status(404).json({ error: 'Curve not found.' });
 
   const machine = machines[0];
+  // The page stops the pen when the ink runs out. This catches a drawing sent some other way.
+  // The small allowance covers rounding of pen positions.
+  if (rules.inkUsed(drawing) > rules.inkFor(machine) * 1.05) {
+    return response.status(400).json({ error: 'That drawing uses more ink than the pen holds.' });
+  }
   const result = rules.judge(drawing, machine);
   const finished = result.solved || go === rules.MAX_GOES;
 

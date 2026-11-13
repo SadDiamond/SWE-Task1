@@ -107,6 +107,17 @@ for (const slot of [1, 2, 3]) {
   });
 }
 
+// Ink: enough to draw the curve with some to spare, but not enough to scribble over the graph.
+assert.strictEqual(rules.inkUsed([[[0, 0], [3, 4]], [[0, 0], [0, 2]]]), 7);
+assert.strictEqual(rules.inkFor(gentle), 34, 'a gentle line 22.4 long gets half as much again');
+assert.strictEqual(rules.inkFor({ family_id: ROOT, a: 1, b: 8, c: 0 }), 30, 'a short visible curve still gets the smallest amount');
+for (const slot of [1, 2, 3]) {
+  const machine = rules.makeMachine('2026-11-13', slot);
+  const ownLength = rules.inkUsed(traced(rules.visibleCurve(machine)));
+  assert.ok(rules.inkFor(machine) >= ownLength, 'there is always enough ink to draw the curve itself');
+  assert.ok(rules.inkFor(machine) < 400, 'there is never enough to fill the graph');
+}
+
 // Drawings do not have to be functions: a vertical line and a loop are both accepted and marked.
 const vertical = rules.judge([[[0, -9], [0, 9]]], steep);
 assert.ok(vertical.accuracy > flat.accuracy, 'a vertical line through a steep curve beats a flat one');
