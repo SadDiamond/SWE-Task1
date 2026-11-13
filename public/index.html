@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/styles.css">
     <title>Placeholder</title>
   </head>
-  <body>
+  <body data-page="today">
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="top">
@@ -15,6 +15,7 @@
       <nav aria-label="Main navigation">
         <ul>
           <li><a href="/" aria-current="page">Today</a></li>
+          <li><a href="/account.html" id="account-link">Log in</a></li>
         </ul>
       </nav>
     </header>
@@ -28,6 +29,11 @@
           edges show where a curve leaves the graph. Draw where you think it goes. The moment
           you lift your pen, your line is marked: green where you are on it, red where you
           are way off.
+        </p>
+
+        <p id="guest-note" class="guest-note" hidden>
+          You are playing as a guest, so today's score will not be kept.
+          <a href="/account.html">Log in or sign up</a> to save it.
         </p>
 
         <ol id="tabs" class="tabs" aria-label="Today's three curves, played in order"></ol>

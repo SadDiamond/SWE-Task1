@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="A daily puzzle: find the hidden curve by drawing it.">
+    <link rel="stylesheet" href="/styles.css">
+    <title>Account · Placeholder</title>
+  </head>
+  <body data-page="account">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="top">
+      <a class="brand" href="/">Placeholder</a>
+      <nav aria-label="Main navigation">
+        <ul>
+          <li><a href="/">Today</a></li>
+          <li><a href="/account.html" id="account-link" aria-current="page">Log in</a></li>
+        </ul>
+      </nav>
+    </header>
+
+    <main id="main" class="narrow">
+      <h1>Account</h1>
+      <p id="form-status" class="status" role="status" aria-live="polite"></p>
+
+      <div id="logged-out" hidden>
+        <p class="intro">An account keeps your scores, so your day is still there when you come back.</p>
+
+        <form id="login-form" class="card">
+          <h2>Log in</h2>
+          <label for="login-username">Username</label>
+          <input id="login-username" name="username" autocomplete="username" required>
+
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+
+          <button type="submit" class="primary">Log in</button>
+        </form>
+
+        <form id="signup-form" class="card">
+          <h2>Sign up</h2>
+          <label for="signup-username">Username</label>
+          <input id="signup-username" name="username" autocomplete="username"
+                 minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" required
+                 aria-describedby="signup-username-help">
+          <p id="signup-username-help" class="help">3 to 20 letters, numbers or underscores.</p>
+
+          <label for="signup-name">Display name (optional)</label>
+          <input id="signup-name" name="displayName" maxlength="30" autocomplete="nickname">
+
+          <label for="signup-password">Password</label>
+          <input id="signup-password" name="password" type="password" autocomplete="new-password"
+                 minlength="8" maxlength="100" required aria-describedby="signup-password-help">
+          <p id="signup-password-help" class="help">At least 8 characters.</p>
+
+          <button type="submit" class="primary">Create account</button>
+        </form>
+      </div>
+
+      <div id="logged-in" class="card" hidden>
+        <h2 id="account-name"></h2>
+        <p>Username: <strong id="account-username"></strong></p>
+        <p>Member since <span id="account-created"></span></p>
+        <button type="button" id="logout-button">Log out</button>
+      </div>
+    </main>
+
+    <footer>
+      <p>Placeholder. A Year 12 Software Engineering project.</p>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>

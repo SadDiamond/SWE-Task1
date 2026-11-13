@@ -52,24 +52,33 @@ function rounded(position) {
   return [Math.round(position.x * 100) / 100, Math.round(position.y * 100) / 100];
 }
 
-async function start() {
+// Who is logged in, or null for a guest. Set once when the page loads.
+let currentUser = null;
+
+async function todayPage() {
   const game = await request('/api/today');
+  find('#guest-note').hidden = Boolean(currentUser);
   const graph = find('#graph');
 
   // Everything about one of the day's curves, so switching tabs loses nothing.
   // A stroke is a list of [x, y] pen positions, and a go is made of one or more strokes.
-  const rounds = game.curves.map((curve) => ({
-    ...curve,
-    strokes: [],        // the strokes of the go in progress
-    shown: null,        // the last go once marked: { strokes, levels }
-    ghost: null,        // the go before that
-    missed: [],
-    dots: [],           // hint dots the player has asked for
-    inkSpent: 0,        // how much line has been drawn in the go in progress
-    goes: 0,
-    result: null        // the server's final reply once the round is over
-  }));
-  let round = rounds[0];
+  // For a logged-in player, curve.saved holds what they have already done today.
+  const rounds = game.curves.map((curve) => {
+    const saved = curve.saved;
+    return {
+      ...curve,
+      strokes: [],                                    // the strokes of the go in progress
+      inkSpent: 0,                                    // how much line has been drawn in the go in progress
+      shown: saved && saved.last ? saved.last : null, // the last go once marked: { strokes, levels, nudges }
+      ghost: null,                                    // the go before that
+      missed: saved && saved.last ? saved.last.missed : [],
+      dots: saved ? saved.dots : [],                  // hint dots the player has asked for
+      goes: saved ? saved.goes : 0,
+      result: saved ? saved.result : null             // the server's final reply once the round is over
+    };
+  });
+  // Carry on with the first curve that is not finished yet.
+  let round = rounds.find((item) => !item.result) || rounds[rounds.length - 1];
 
   // How far the pen has travelled in the stroke being drawn, in graph units.
   let strokeLength = 0;
@@ -212,9 +221,8 @@ async function start() {
         ? `Cracked it in ${goesText(round.goes)}`
         : 'Out of goes';
       find('#result-top').textContent = `/ ${game.topScore}`;
-      // The score counts up from zero, and the total in the header climbs by the same amount.
+      // The score counts up from zero. The total in the header climbs too, further down.
       countUp(find('#result-score'), 0, result.score);
-      showTotal();
 
       // How the score was reached, one line for each thing that changed it.
       const extraGoes = round.goes - 1;
@@ -231,6 +239,7 @@ async function start() {
       find('#next-curve').textContent = more ? 'Next curve' : "See today's result";
     }
     showProgress();
+    showTotal();
     showInk();
     showGraph();
   }
@@ -451,6 +460,58 @@ async function start() {
   const date = new Date(`${game.date}T00:00`);
   find('#today-date').textContent = date.toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
   showRound();
+  // If all three were finished on an earlier visit, go straight to the end screen.
+  if (rounds.every((item) => item.result)) showSummary();
+}
+
+/* The account page */
+
+// Sends a form to the server and shows the error if it is refused.
+function onSubmit(form, action) {
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    try {
+      await action(Object.fromEntries(new FormData(form)));
+    } catch (error) {
+      message(error.message);
+    }
+  });
+}
+
+async function accountPage() {
+  find('#logged-out').hidden = Boolean(currentUser);
+  find('#logged-in').hidden = !currentUser;
+
+  onSubmit(find('#login-form'), async (fields) => {
+    await send('/api/login', fields);
+    location.href = '/';
+  });
+  onSubmit(find('#signup-form'), async (fields) => {
+    await send('/api/signup', fields);
+    location.href = '/';
+  });
+  if (!currentUser) return;
+
+  find('#account-name').textContent = currentUser.display_name;
+  find('#account-username').textContent = currentUser.username;
+  // The database stores times in UTC, so "Z" is added before turning it into a local date.
+  find('#account-created').textContent = new Date(`${currentUser.created_at.replace(' ', 'T')}Z`)
+    .toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+  find('#logout-button').addEventListener('click', async () => {
+    await request('/api/logout', { method: 'POST' });
+    location.href = '/';
+  });
+}
+
+/* Starting the right page */
+
+const pages = { today: todayPage, account: accountPage };
+
+async function start() {
+  const me = await request('/api/me');
+  currentUser = me.user;
+  if (currentUser) find('#account-link').textContent = currentUser.display_name;
+  await pages[document.body.dataset.page]();
 }
 
 start().catch((error) => message(error.message));

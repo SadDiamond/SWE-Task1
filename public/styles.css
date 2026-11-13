@@ -767,3 +767,46 @@ summary {
     transform: scale(1) rotate(-1deg);
   }
 }
+
+/* Account page and forms */
+
+.narrow {
+  max-width: 30rem;
+}
+
+.card {
+  margin: 1.25rem 0;
+  padding: 1.25rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--wobble);
+  background: #ffffff;
+}
+
+label {
+  display: block;
+  margin: 0.875rem 0 0.25rem;
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+}
+
+form button {
+  margin-top: 1.25rem;
+}
+
+.guest-note {
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 4px solid var(--level-3);
+  background: #ffffff;
+  font-size: 0.9375rem;
+}
