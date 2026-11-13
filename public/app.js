@@ -68,7 +68,6 @@ async function start() {
     shown: null,        // the last go once marked: { strokes, levels }
     ghost: null,        // the go before that
     missed: [],
-    exits: [],
     goes: 0,
     result: null        // the server's final reply once the round is over
   }));
@@ -93,6 +92,7 @@ async function start() {
       percent,
       missed: round.missed,
       exits: round.exits,
+      dots: round.dots,
       curve: round.result ? round.result.curve : null,
       asymptotes: round.result ? round.result.asymptotes : [],
       pen: pen.visible && !round.result ? pen : null
@@ -251,9 +251,8 @@ async function start() {
     try {
       const result = await send(`/api/machines/${marking.id}/go`, { drawing: marking.strokes, go: marking.goes + 1 });
       marking.goes += 1;
-      marking.shown = { strokes: marking.strokes, levels: result.levels };
+      marking.shown = { strokes: marking.strokes, levels: result.levels, nudges: result.nudges };
       marking.missed = result.missed;
-      marking.exits = result.exits;
       if (result.finished) {
         marking.result = result;
         message('');

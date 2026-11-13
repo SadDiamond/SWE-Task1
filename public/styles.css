@@ -421,6 +421,22 @@ button.primary:hover:not(:disabled) {
   fill: var(--ink);
 }
 
+/* A clue dot: a spot that is definitely on the curve. */
+.dot {
+  fill: var(--ink);
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+/* A nudge: a small arrow from a badly-off part of the line towards the curve. */
+.nudge {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .missed {
   fill: var(--muted);
 }

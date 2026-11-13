@@ -96,6 +96,28 @@ function drawMarked(group, strokes, levels, scale) {
   });
 }
 
+// Draws the nudges: short arrows from a badly-off part of the line towards the real curve.
+// Each nudge is { x, y, across, up }, where across and up give the direction as a step of length 1.
+function drawNudges(group, nudges, scale) {
+  nudges.forEach((nudge) => {
+    const startX = scale.xFor(nudge.x);
+    const startY = scale.yFor(nudge.y);
+    // On screen "up" is a smaller y, so the upward part of the direction is taken away.
+    const tipX = startX + nudge.across * 26;
+    const tipY = startY - nudge.up * 26;
+    // The two sides of the arrowhead are the direction turned a little either way, pointing back.
+    const head = [0.5, -0.5].map((turn) => {
+      const backX = -nudge.across * Math.cos(turn) - nudge.up * Math.sin(turn);
+      const backY = nudge.up * Math.cos(turn) - nudge.across * Math.sin(turn);
+      return `M${tipX.toFixed(1)} ${tipY.toFixed(1)} l${(backX * 9).toFixed(1)} ${(backY * 9).toFixed(1)}`;
+    });
+    group.append(svgElement('path', {
+      class: 'nudge',
+      d: `M${startX.toFixed(1)} ${startY.toFixed(1)} L${tipX.toFixed(1)} ${tipY.toFixed(1)} ${head.join(' ')}`
+    }));
+  });
+}
+
 // The real curve arrives as one output for each column across the graph, null where there is nothing.
 // This splits it into separate lines at the gaps and at big jumps.
 function curvePaths(curve, scale, limit) {
@@ -122,7 +144,8 @@ function curvePaths(curve, scale, limit) {
 
 // picture holds everything to show:
 //   strokes: the strokes of the go in progress,
-//   shown: the last go once marked { strokes, levels }, ghost: the go before that,
+//   shown: the last go once marked { strokes, levels, nudges }, ghost: the go before that,
+//   dots: clue spots on the curve, shown from the start,
 //   percent: the score to show over the graph, missed: columns the last go was nowhere near,
 //   exits: where the curve leaves the graph, curve and asymptotes: the answer, once known,
 //   pen: the keyboard pen { x, y, down }, or null.
@@ -152,6 +175,7 @@ function drawGraph(svg, picture, limit) {
   if (picture.shown) {
     const group = svgElement('g', { class: picture.curve ? 'faded' : '' });
     drawMarked(group, picture.shown.strokes, picture.shown.levels, scale);
+    if (!picture.curve) drawNudges(group, picture.shown.nudges, scale);
     svg.append(group);
   }
   picture.strokes.forEach((stroke) => {
@@ -195,6 +219,11 @@ function drawGraph(svg, picture, limit) {
       ? `${x - 8},16 ${x + 8},16 ${x},3`
       : `${x - 8},${scale.size - 16} ${x + 8},${scale.size - 16} ${x},${scale.size - 3}`;
     svg.append(svgElement('polygon', { class: 'exit', points }));
+  });
+
+  // The clue dots: spots that are on the curve, shown from the start.
+  picture.dots.forEach(([x, y]) => {
+    svg.append(svgElement('circle', { class: 'dot', cx: scale.xFor(x), cy: scale.yFor(y), r: 6 }));
   });
 
   if (picture.pen) {
