@@ -96,11 +96,12 @@ assert.ok(below.nudges.every((nudge) => nudge.up > 0), 'a line far below the cur
 assert.strictEqual(perfect.nudges.length, 0, 'a line on the curve gets no nudges');
 assert.strictEqual(raised.nudges.length, 0, 'a line that is only a little off gets no nudges');
 
-// Starter dots are on the curve: three for easy, two for medium, one for hard.
+// Hint dots are on the curve, there are three of them, and they are all different.
 for (const slot of [1, 2, 3]) {
-  const machine = { ...rules.makeMachine('2026-11-13', slot), slot };
-  const dots = rules.starterDots(machine);
-  assert.strictEqual(dots.length, 4 - slot);
+  const machine = rules.makeMachine('2026-11-13', slot);
+  const dots = rules.hintDots(machine);
+  assert.strictEqual(dots.length, 3);
+  assert.strictEqual(new Set(dots.map(([x]) => x)).size, 3, 'the three dots are in different places');
   dots.forEach(([x, y]) => {
     assert.ok(Math.abs(rules.evaluate(machine, x) - y) < 0.01, 'each dot sits on the curve');
   });
@@ -132,10 +133,13 @@ assert.strictEqual(rules.pieces(steep), 1);
 assert.strictEqual(rules.pieces(hyperbola), 2, 'a hyperbola is in two pieces');
 assert.strictEqual(rules.pieces({ family_id: EXPONENTIAL, a: 1, b: 1, c: 0 }), 1, 'a flat asymptote does not split a curve');
 
-assert.strictEqual(rules.starsFor(true, 1), 3);
-assert.strictEqual(rules.starsFor(true, 4), 2);
-assert.strictEqual(rules.starsFor(true, 5), 1);
-assert.strictEqual(rules.starsFor(false, 5), 0);
+// Stars: fewer goes is better, each hint costs one, unsolved gets none.
+assert.strictEqual(rules.starsFor(true, 1, 0), 3);
+assert.strictEqual(rules.starsFor(true, 4, 0), 2);
+assert.strictEqual(rules.starsFor(true, 5, 0), 1);
+assert.strictEqual(rules.starsFor(true, 1, 1), 2);
+assert.strictEqual(rules.starsFor(true, 5, 3), 0, 'stars never go below zero');
+assert.strictEqual(rules.starsFor(false, 5, 0), 0);
 
 // A year of curves: three a day, easy to hard, valid numbers, enough on screen, same every time.
 const seen = new Set();

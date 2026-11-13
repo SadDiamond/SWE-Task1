@@ -35,6 +35,7 @@ app.get('/api/today', route(async (_request, response) => {
     date: rules.todayDate(),
     limit: rules.LIMIT,
     maxGoes: rules.MAX_GOES,
+    maxHints: rules.MAX_HINTS,
     shortestStroke: rules.SHORTEST_STROKE,
     mostPoints: rules.MOST_POINTS,
     curves: machines.map((machine) => ({
@@ -42,9 +43,8 @@ app.get('/api/today', route(async (_request, response) => {
       slot: machine.slot,
       // How many strokes make up one go. More than one means the curve has breaks in it.
       strokesPerGo: rules.pieces(machine),
-      // Clues that are there before the first go, so it is not a blind guess.
-      exits: rules.exits(machine),
-      dots: rules.starterDots(machine)
+      // Where the curve leaves the graph is shown from the start, so the first go is not a blind guess.
+      exits: rules.exits(machine)
     }))
   });
 }));
@@ -52,13 +52,16 @@ app.get('/api/today', route(async (_request, response) => {
 // Marks one go: a freehand drawing made of strokes, each a list of [x, y] pen positions.
 app.post('/api/machines/:id/go', route(async (request, response) => {
   const id = Number.parseInt(request.params.id, 10);
-  const { drawing, go } = request.body;
+  const { drawing, go, hints } = request.body;
 
   if (!rules.validDrawing(drawing)) {
     return response.status(400).json({ error: 'That drawing is not in the right format.' });
   }
   if (!Number.isInteger(go) || go < 1 || go > rules.MAX_GOES) {
     return response.status(400).json({ error: 'That go number is not valid.' });
+  }
+  if (!Number.isInteger(hints) || hints < 0 || hints > rules.MAX_HINTS) {
+    return response.status(400).json({ error: 'That number of hints is not valid.' });
   }
 
   const machines = await all(`
@@ -84,12 +87,26 @@ app.post('/api/machines/:id/go', route(async (request, response) => {
   // The real curve is only sent once the round is over.
   if (finished) {
     reply.curve = rules.visibleCurve(machine);
-    reply.stars = rules.starsFor(result.solved, go);
+    reply.stars = rules.starsFor(result.solved, go, hints);
     reply.familyName = machine.family_name;
     reply.formula = rules.describe(machine);
     reply.asymptotes = rules.asymptotes(machine);
   }
   response.json(reply);
+}));
+
+// Gives one hint: a spot that is on the curve. number is 1 for the first hint, 2 for the second, and so on.
+app.post('/api/machines/:id/hint', route(async (request, response) => {
+  const id = Number.parseInt(request.params.id, 10);
+  const { number } = request.body;
+  if (!Number.isInteger(number) || number < 1 || number > rules.MAX_HINTS) {
+    return response.status(400).json({ error: 'There are no more hints for this curve.' });
+  }
+
+  const machines = await all('SELECT * FROM machines WHERE id = ? AND play_date <= ?', [id, rules.todayDate()]);
+  if (machines.length === 0) return response.status(404).json({ error: 'Curve not found.' });
+
+  response.json({ dot: rules.hintDots(machines[0])[number - 1] });
 }));
 
 app.use('/api', (_request, response) => {

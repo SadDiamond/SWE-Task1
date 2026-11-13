@@ -252,20 +252,23 @@ function validDrawing(strokes) {
   return points <= MOST_POINTS;
 }
 
-// The clue dots shown before the first go: spots that are on the curve.
-// Easy curves get three, medium two and hard one, spread evenly along the visible part.
-function starterDots(machine) {
+// How many hints a player can ask for on one curve. Each one costs a star.
+const MAX_HINTS = 3;
+
+// The hint dots for a curve: spots that are on it, spread evenly along the visible part.
+// They are only handed out one at a time, when the player asks for a hint.
+function hintDots(machine) {
   const visible = [];
   visibleCurve(machine).forEach((output, column) => {
     if (output !== null) visible.push([Math.round(inputFor(column) * 10) / 10, output]);
   });
 
-  const count = 4 - machine.slot;
   const dots = [];
-  for (let index = 1; index <= count; index += 1) {
-    dots.push(visible[Math.floor((visible.length * index) / (count + 1))]);
+  for (let index = 1; index <= MAX_HINTS; index += 1) {
+    dots.push(visible[Math.floor((visible.length * index) / (MAX_HINTS + 1))]);
   }
-  return dots;
+  // The middle dot is given first, because it is the most useful on its own.
+  return [dots[1], dots[0], dots[2]];
 }
 
 // How many separate pieces the curve is in: one more than its vertical asymptotes.
@@ -274,12 +277,14 @@ function pieces(machine) {
   return 1 + asymptotes(machine).filter((line) => line.kind === 'vertical').length;
 }
 
-// Stars for a finished round: fewer goes is better, and unsolved gets none.
-function starsFor(solved, goes) {
+// Stars for a finished round: fewer goes is better, each hint used takes one away,
+// and an unsolved curve gets none.
+function starsFor(solved, goes, hints) {
   if (!solved) return 0;
-  if (goes <= 2) return 3;
-  if (goes <= 4) return 2;
-  return 1;
+  let stars = 1;
+  if (goes <= 2) stars = 3;
+  else if (goes <= 4) stars = 2;
+  return Math.max(0, stars - hints);
 }
 
 /* Writing the formula out */
@@ -460,8 +465,8 @@ async function fillHistory() {
 }
 
 module.exports = {
-  COLUMNS, LIMIT, MAX_GOES, MOST_POINTS, SHORTEST_STROKE, STEPS_PER_UNIT,
+  COLUMNS, LIMIT, MAX_GOES, MAX_HINTS, MOST_POINTS, SHORTEST_STROKE, STEPS_PER_UNIT,
   LINE, PARABOLA, V_SHAPE, CUBIC, WAVE, ROOT, EXPONENTIAL, HYPERBOLA, SLANTED,
   asymptotes, describe, evaluate, exits, fillHistory, inputFor, judge, machinesFor, makeMachine,
-  pieces, starsFor, starterDots, todayDate, validDrawing, visibleCurve, wholeCurve
+  hintDots, pieces, starsFor, todayDate, validDrawing, visibleCurve, wholeCurve
 };
