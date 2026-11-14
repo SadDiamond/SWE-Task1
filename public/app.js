@@ -123,15 +123,16 @@ async function todayPage() {
     find('#ink').hidden = Boolean(round.result);
   }
 
-  // Redraws on the next screen refresh. Pointer events arrive faster than the screen updates,
-  // so this stops the graph being rebuilt more often than anyone could see.
+  // Redraws the stroke being drawn on the next screen refresh. Pointer events arrive faster
+  // than the screen updates, so this stops it being redrawn more often than anyone could see.
+  // Only that one line changes, so the rest of the graph is left alone.
   let drawQueued = false;
-  function showGraphSoon() {
+  function showStrokeSoon() {
     if (drawQueued) return;
     drawQueued = true;
     requestAnimationFrame(() => {
       drawQueued = false;
-      showGraph();
+      drawLiveStroke(graph, round.strokes[round.strokes.length - 1], game.limit);
     });
   }
 
@@ -396,7 +397,7 @@ async function todayPage() {
     strokeLength += moved;
     round.inkSpent += moved;
     showInk();
-    showGraphSoon();
+    showStrokeSoon();
   }
 
   // Called when the pen is lifted. Once enough strokes are down, the go is sent to be marked.

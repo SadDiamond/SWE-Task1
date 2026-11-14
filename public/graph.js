@@ -82,18 +82,29 @@ function strokePath(stroke, scale) {
 
 // Draws marked strokes: every short piece of line gets the colour of its level.
 // levels matches strokes: a number from 0 (spot on) to 4 (way off) for each pen position.
+// Pieces in a row with the same level share one path, which keeps the graph to a few elements.
 function drawMarked(group, strokes, levels, scale) {
+  const at = ([x, y]) => `${scale.xFor(x).toFixed(1)} ${scale.yFor(y).toFixed(1)}`;
   strokes.forEach((stroke, strokeIndex) => {
+    let path = null;
     for (let index = 1; index < stroke.length; index += 1) {
-      group.append(svgElement('line', {
-        class: `mark l${levels[strokeIndex][index]}`,
-        x1: scale.xFor(stroke[index - 1][0]),
-        y1: scale.yFor(stroke[index - 1][1]),
-        x2: scale.xFor(stroke[index][0]),
-        y2: scale.yFor(stroke[index][1])
-      }));
+      const level = levels[strokeIndex][index];
+      if (path && path.level === level) {
+        path.d += ` L${at(stroke[index])}`;
+      } else {
+        if (path) group.append(svgElement('path', { class: `mark l${path.level}`, d: path.d }));
+        path = { level, d: `M${at(stroke[index - 1])} L${at(stroke[index])}` };
+      }
     }
+    if (path) group.append(svgElement('path', { class: `mark l${path.level}`, d: path.d }));
   });
+}
+
+// Redraws only the stroke being drawn, which is far quicker than rebuilding the whole graph.
+// drawGraph marks that stroke's path as live.
+function drawLiveStroke(svg, stroke, limit) {
+  const path = svg.querySelector('.stroke.live');
+  if (path) path.setAttribute('d', strokePath(stroke, scaleFor(svg, limit)));
 }
 
 // Draws the nudges: short arrows from a badly-off part of the line towards the real curve.
@@ -178,8 +189,9 @@ function drawGraph(svg, picture, limit) {
     if (!picture.curve) drawNudges(group, picture.shown.nudges, scale);
     svg.append(group);
   }
-  picture.strokes.forEach((stroke) => {
-    svg.append(svgElement('path', { class: 'stroke', d: strokePath(stroke, scale) }));
+  picture.strokes.forEach((stroke, index) => {
+    const live = index === picture.strokes.length - 1;
+    svg.append(svgElement('path', { class: live ? 'stroke live' : 'stroke', d: strokePath(stroke, scale) }));
   });
 
   // The answer goes on top of the drawing so it can always be seen. It is drawn inside a group
