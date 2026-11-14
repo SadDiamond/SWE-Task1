@@ -1,542 +1,98 @@
-/* Design tokens: every colour, font and space used on the site is named here once.
-   The look is a page of graph paper: ink for facts, a blue pen for the player, a red pen for marking. */
-
-:root {
-  --page: #f7f5ee;
-  --paper: #fffefa;
-  --ink: #22262b;
-  --muted: #5b6370;
-  --rule: #c9d3dc;
-  --grid: #dbe4ec;
-  --blue-pen: #1b4fc4;
-  --red-pen: #c22f27;
-  --gap-shade: #fff3c9;
-
-  --text: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-
-  --space: 1rem;
-}
-
-* {
-  box-sizing: border-box;
-}
-
 body {
-  margin: 0;
-  background: var(--page);
-  color: var(--ink);
-  font: 1rem/1.55 var(--text);
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1rem;
+  font: 1rem/1.5 system-ui, sans-serif;
 }
 
-/* Makes the hidden attribute win over display rules set further down. */
 [hidden] {
   display: none !important;
 }
 
-.visually-hidden {
+.visually-hidden,
+.skip-link:not(:focus) {
   position: absolute;
   width: 1px;
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-/* Layout */
-
-.top,
-main,
-footer {
-  width: min(100% - 2rem, 50rem);
-  margin-inline: auto;
 }
 
 .top {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
   justify-content: space-between;
-  gap: 0.25rem 1.5rem;
-  padding: 1.25rem 0 0.75rem;
-  border-bottom: 2px solid var(--ink);
-}
-
-.brand {
-  color: var(--ink);
-  font-size: 1.125rem;
-  font-weight: 700;
-  text-decoration: none;
+  align-items: baseline;
 }
 
 nav ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
-  margin: 0;
-  padding: 0;
   list-style: none;
+  padding: 0;
 }
 
-nav a {
-  display: block;
-  padding: 0.375rem 0;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-nav a:hover,
-nav a[aria-current="page"] {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.3em;
-}
-
-main {
-  padding: 1.75rem 0 3rem;
-}
-
-footer {
-  padding: 1rem 0 2rem;
-  border-top: 1px solid var(--rule);
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-h1 {
-  margin: 0;
-  font-size: clamp(1.625rem, 5vw, 2.25rem);
-  line-height: 1.15;
-}
-
-#machine-details {
-  margin: 0.25rem 0 1.25rem;
-  color: var(--muted);
-}
-
-h2 {
-  margin: 0 0 0.375rem;
-  font-size: 1.125rem;
-}
-
-p {
-  margin: 0 0 0.75rem;
-}
-
-.help {
-  margin: 0.5rem 0 0;
-  color: var(--muted);
-  font-size: 0.875rem;
-}
-
-/* The graph */
-
-.graph-bar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
+/* Graph */
 
 .graph {
   display: block;
   width: 100%;
-  /* Wide on a big screen, closer to square on a phone so there is room to draw. */
-  aspect-ratio: 16 / 10;
-  cursor: grab;
-  /* Sideways drags move the graph; up-and-down swipes still scroll the page on a phone. */
-  touch-action: pan-y;
-  user-select: none;
-}
-
-/* Clicking the graph with a mouse should not draw a focus box round it. Keyboard focus still does. */
-.graph:focus:not(:focus-visible) {
-  outline: none;
-}
-
-.graph.drawing-mode {
+  border: 1px solid #999;
   cursor: crosshair;
   touch-action: none;
 }
 
-.paper {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 1.5;
-}
+.paper { fill: #fff; }
+.grid { stroke: #eee; }
+.grid.major { stroke: #ccc; }
+.axis { stroke: #333; }
+.tick { fill: #666; font-size: 10px; }
 
-.grid {
-  stroke: var(--grid);
-  stroke-width: 1;
-}
-
-.axis {
-  stroke: var(--ink);
-  stroke-width: 1.5;
-}
-
-.edge {
-  stroke: var(--rule);
-  stroke-width: 1;
-  stroke-dasharray: 4 4;
-}
-
-.gap {
-  fill: var(--gap-shade);
-}
-
-.tick {
-  fill: var(--muted);
-  font: 13px var(--mono);
-}
-
-.point {
-  fill: var(--ink);
-  stroke: var(--paper);
-  stroke-width: 2;
-}
-
-.point.newest {
-  fill: var(--paper);
-  stroke: var(--ink);
-  stroke-width: 3;
-}
-
-.drawing,
-.truth {
+.stroke,
+.ghost,
+.truth,
+.asymptote {
   fill: none;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.drawing {
-  stroke: var(--blue-pen);
-}
+.stroke.fresh { stroke: blue; }
+.stroke.g { stroke: green; }
+.stroke.a { stroke: orange; stroke-dasharray: 8 6; }
+.stroke.r { stroke: red; stroke-dasharray: 2 6; }
+.ghost { stroke: #bbb; }
+.truth { stroke: black; }
+.asymptote { stroke: #888; stroke-width: 1; stroke-dasharray: 6 4; }
+.exit { fill: black; }
+.missed { fill: #bbb; }
+.pen { fill: none; stroke: #333; }
+.pen.down { fill: #333; }
 
-.truth {
-  stroke: var(--red-pen);
-  stroke-dasharray: 2 6;
-}
+/* Goes left */
 
-/* Controls */
-
-input,
-button {
-  font: inherit;
-}
-
-button {
-  min-height: 2.75rem;
-  padding: 0.5rem 1rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
-  color: var(--ink);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-button:hover:not(:disabled) {
-  background: var(--grid);
-}
-
-button.primary {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-button.primary:hover:not(:disabled) {
-  background: #3a4048;
-}
-
-button:disabled,
-input:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-:focus-visible {
-  outline: 3px solid var(--blue-pen);
-  outline-offset: 2px;
-}
-
-.skip-link {
-  position: absolute;
-  left: -9999px;
-}
-
-.skip-link:focus {
-  left: 1rem;
-  top: 1rem;
-  z-index: 1;
-  padding: 0.5rem 1rem;
-  background: var(--paper);
-}
-
-/* Draw / Move switch */
-
-fieldset {
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.switch {
-  display: flex;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.switch label {
-  display: flex;
-  align-items: center;
-  min-height: 2.5rem;
-  padding: 0 1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.switch input {
-  position: absolute;
-  opacity: 0;
-}
-
-.switch label:has(input:checked) {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.switch label:has(input:focus-visible) {
-  outline: 3px solid var(--blue-pen);
-  outline-offset: -3px;
-}
-
-.zoom {
-  display: flex;
-  gap: 0.375rem;
-}
-
-.zoom button {
-  min-width: 2.5rem;
-  min-height: 2.5rem;
-  padding: 0 0.75rem;
-}
-
-/* The three steps */
-
-.steps {
-  margin-top: 1.5rem;
-}
-
-.step {
-  padding: 1.25rem 0;
-  border-top: 1px solid var(--rule);
-}
-
-.number {
-  display: inline-grid;
-  place-items: center;
-  width: 1.625rem;
-  height: 1.625rem;
-  margin-right: 0.375rem;
-  border: 1.5px solid var(--ink);
+.go {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  margin-right: 0.25rem;
+  border: 1px solid #333;
   border-radius: 50%;
-  font-size: 0.875rem;
 }
 
-.test-form {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem 0.75rem;
+.go.used { background: #333; }
+
+/* Colour key */
+
+.key ul { list-style: none; padding: 0; }
+
+.swatch {
+  display: inline-block;
+  width: 1.5rem;
+  border-top: 3px solid;
+  vertical-align: middle;
 }
 
-.test-form label {
-  font-weight: 600;
-}
-
-.test-form input {
-  width: 6rem;
-  min-height: 2.75rem;
-  padding: 0 0.625rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
-  color: var(--ink);
-  font-family: var(--mono);
-  font-size: 1.125rem;
-}
-
-.energy-text {
-  margin: 1rem 0 0.375rem;
-  font-weight: 600;
-}
-
-/* Tests left, as a row of boxes that empty from the right */
-
-.cells {
-  display: flex;
-  gap: 0.25rem;
-  max-width: 20rem;
-}
-
-.cell {
-  flex: 1;
-  height: 0.625rem;
-  border: 1.5px solid var(--ink);
-}
-
-.cell.full {
-  background: var(--ink);
-}
-
-.log {
-  margin-top: 1rem;
-}
-
-.log summary {
-  padding: 0.375rem 0;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-table {
-  width: 100%;
-  max-width: 20rem;
-  border-collapse: collapse;
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-}
-
-th,
-td {
-  padding: 0.3125rem 0.75rem;
-  border-bottom: 1px solid var(--grid);
-  text-align: right;
-}
-
-thead th {
-  border-bottom: 1.5px solid var(--ink);
-  font-family: var(--text);
-  font-size: 0.875rem;
-}
-
-tbody th {
-  font-weight: 400;
-}
-
-td:last-child {
-  color: var(--muted);
-}
-
-tr.newest th,
-tr.newest td {
-  font-weight: 700;
-}
-
-.progress {
-  font-weight: 600;
-}
-
-/* Choosing the type */
-
-.families legend {
-  margin-bottom: 0.625rem;
-}
-
-.families label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0 0.625rem;
-  padding: 0.75rem;
-  border: 1.5px solid var(--rule);
-  border-radius: 3px;
-  background: var(--paper);
-  cursor: pointer;
-}
-
-.families label + label {
-  margin-top: 0.5rem;
-}
-
-.families label:has(input:checked) {
-  border-color: var(--ink);
-}
-
-.families input {
-  grid-row: span 2;
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0.2rem 0 0;
-  accent-color: var(--ink);
-}
-
-.families span {
-  color: var(--muted);
-  font-size: 0.9375rem;
-}
-
-.submit {
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--rule);
-}
-
-.status {
-  min-height: 1.5rem;
-  margin: 0.75rem 0 0;
-  color: var(--red-pen);
-  font-weight: 600;
-}
-
-/* Result */
-
-.result {
-  margin-top: 1.5rem;
-  padding: 1.25rem;
-  border: 1.5px solid var(--ink);
-  border-radius: 3px;
-  background: var(--paper);
-}
-
-.score {
-  margin: 0.25rem 0 1rem;
-  font-size: 2rem;
-  font-weight: 800;
-  line-height: 1.1;
-}
-
-.stars {
-  margin-left: 0.5rem;
-  color: var(--red-pen);
-  letter-spacing: 0.1em;
-}
-
-dl {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.375rem 1.5rem;
-  margin: 0;
-}
-
-dt {
-  color: var(--muted);
-}
-
-dd {
-  margin: 0;
-  font-weight: 600;
-}
-
-.formula {
-  font-family: var(--mono);
-}
-
-@media (max-width: 36rem) {
-  .graph {
-    aspect-ratio: 1 / 1;
-  }
-}
+.swatch.g { border-color: green; }
+.swatch.a { border-color: orange; border-top-style: dashed; }
+.swatch.r { border-color: red; border-top-style: dotted; }
+.swatch.exit { border: 0; width: auto; }
+.swatch.missed { border-color: #bbb; border-top-width: 6px; }
