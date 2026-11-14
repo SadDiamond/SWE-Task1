@@ -1,8 +1,3 @@
-/* Design tokens: every colour, font and space used on the site is named here once.
-   The graph itself is clean. Everything around it looks drawn by hand. */
-
-/* A handwriting font that comes with the site, so it looks the same on every device.
-   Patrick Hand, SIL Open Font License. The licence is in public/fonts. */
 @font-face {
   font-family: "Patrick Hand";
   src: url("/fonts/patrick-hand.woff2") format("woff2");
@@ -29,7 +24,7 @@
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   /* An uneven corner radius makes a box look drawn with a pen instead of a ruler. */
-  --wobble: 255px 15px 225px 15px / 15px 225px 15px 255px;
+  --wobble: 230px 15px 225px 15px / 15px 225px 15px 255px;
 }
 
 * {

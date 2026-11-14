@@ -27,7 +27,7 @@
       <p id="form-status" class="status" role="status" aria-live="polite"></p>
 
       <div id="logged-out" hidden>
-        <p class="intro">An account keeps your scores, so your day is still there when you come back.</p>
+        <p class="intro">An account to keep track of your score.</p>
 
         <form id="login-form" class="card">
           <h2>Log in</h2>
@@ -44,8 +44,8 @@
           <h2>Sign up</h2>
           <label for="signup-username">Username</label>
           <input id="signup-username" name="username" autocomplete="username"
-                 minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" required
-                 aria-describedby="signup-username-help">
+                  minlength="3" maxlength="20" pattern="[A-Za-z0-9_]+" required
+                  aria-describedby="signup-username-help">
           <p id="signup-username-help" class="help">3 to 20 letters, numbers or underscores.</p>
 
           <label for="signup-name">Display name (optional)</label>
@@ -53,7 +53,7 @@
 
           <label for="signup-password">Password</label>
           <input id="signup-password" name="password" type="password" autocomplete="new-password"
-                 minlength="8" maxlength="100" required aria-describedby="signup-password-help">
+                  minlength="8" maxlength="100" required aria-describedby="signup-password-help">
           <p id="signup-password-help" class="help">At least 8 characters.</p>
 
           <button type="submit" class="primary">Create account</button>
@@ -63,7 +63,7 @@
       <div id="logged-in" class="card" hidden>
         <h2 id="account-name"></h2>
         <p>Username: <strong id="account-username"></strong></p>
-        <p>Member since <span id="account-created"></span></p>
+        <p>User since <span id="account-created"></span></p>
         <button type="button" id="logout-button">Log out</button>
       </div>
     </main>

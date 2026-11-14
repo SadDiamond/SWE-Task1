@@ -27,25 +27,23 @@
         <h1>Today's curves</h1>
         <p class="details"><span id="today-date">Loading…</span> · <span id="total" class="total">0</span> points</p>
         <p class="intro">
-          Three curves are hiding today, played in order: easy, medium, then hard. The arrows on the
-          edges show where a curve leaves the graph. Draw where you think it goes. The moment
-          you lift your pen, your line is marked: green where you are on it, red where you
-          are way off.
+          Three curves are hidden today, the arrows on the edges show where a curve leaves the graph.
+          Draw where you think it goes, the moment you lift your cursor, your graph is marked.
         </p>
 
-        <ol id="tabs" class="tabs" aria-label="Today's three curves, played in order"></ol>
+        <ol id="tabs" class="tabs" aria-label="Today's three curves"></ol>
         <p id="stroke-info" class="stroke-info"></p>
       </div>
 
       <section class="board" aria-labelledby="graph-heading">
         <h2 id="graph-heading" class="visually-hidden">Graph</h2>
         <svg id="graph" class="graph" role="img" tabindex="0"
-             aria-label="Graph from −10 to 10. Nothing checked yet." aria-describedby="keyboard-help"></svg>
+              aria-label="Graph from −10 to 10." aria-describedby="keyboard-help"></svg>
 
         <div id="ink" class="ink">
           <span id="ink-label" class="ink-label">Ink</span>
           <div class="ink-bar" role="progressbar" aria-labelledby="ink-label"
-               aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+                aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
             <div id="ink-level" class="ink-level"></div>
           </div>
         </div>
@@ -81,8 +79,7 @@
             </svg>
           </p>
           <p class="help">
-            The real curve is the black line, with your last go faded behind it. Dashed lines are
-            asymptotes: lines the curve gets close to but never touches.
+            The real curve is the black line, with your last go faded behind it.
           </p>
           <button type="button" id="next-curve" class="primary">Next curve</button>
         </section>
@@ -95,14 +92,14 @@
           <p class="scale-labels"><span>Spot on</span><span>Way off</span></p>
           <ul>
             <li>The line is thick and green where you are on the curve, and gets thinner and redder the further away you are.</li>
-            <li><strong>● A dot</strong>: a hint. This spot is on the curve. Each hint costs points.</li>
-            <li><strong>Scoring</strong>: each curve is out of 1000. Your accuracy sets the score, then every go after the first costs 100 and every hint costs 150.</li>
+            <li><strong>● A dot</strong>: this spot is on the curve. Use a hint to get a clue about where the curve goes, keep in mind that it will cost your score.</li>
+            <li><strong>Scoring</strong>: each curve is out of 1000. Your accuracy determines the score, then every go after the first costs 100 and every hint costs 150.</li>
             <li><strong>▲ An arrow on the top or bottom edge</strong>: the curve leaves the graph here.</li>
-            <li><strong>→ A small arrow on your line</strong>: you are well off here, and the curve is in that direction. It does not say how far.</li>
+            <li><strong>→ A small arrow on your line</strong>: you are well off here, and the curve is in that direction.</li>
             <li><strong>A grey bar along the bottom</strong>: the curve is somewhere above, and you were nowhere near.</li>
-            <li>Your last go stays on the graph, faded, so you can trace the good parts.</li>
-            <li>You can draw any shape you like, including loops and straight up and down.</li>
-            <li><strong>Ink</strong>: each go has enough ink to draw the curve with some to spare. When the meter is empty the pen stops, so you cannot scribble over the whole graph.</li>
+            <li><strong>Ink</strong>: each go has enough ink to draw the curve with some left to spare.</li>
+            <li>Your last go stays on the graph, so you can trace the good parts.</li>
+            
           </ul>
 
           <details>
@@ -125,7 +122,7 @@
         </p>
         <button type="button" id="copy-result">Copy result</button>
         <p id="copy-status" class="help" role="status" aria-live="polite"></p>
-        <p>That is all three for today. Pick a curve from the list to look back at it, and come back tomorrow for new ones.</p>
+        <p>That is all three for today, come back tomorrow for new ones!</p>
       </section>
     </main>
 
